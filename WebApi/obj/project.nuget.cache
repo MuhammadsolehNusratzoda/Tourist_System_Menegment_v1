@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "Vmu+j5z3s5M=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\Сухайб\\Desktop\\TouristSystem\\WebApi\\WebApi.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Сухайб\\.nuget\\packages\\microsoft.aspnetcore.openapi\\9.0.11\\microsoft.aspnetcore.openapi.9.0.11.nupkg.sha512",
+    "C:\\Users\\Сухайб\\.nuget\\packages\\microsoft.openapi\\1.6.17\\microsoft.openapi.1.6.17.nupkg.sha512"
+  ],
+  "logs": []
+}
