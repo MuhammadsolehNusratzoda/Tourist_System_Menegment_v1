@@ -1,5 +1,3 @@
-// Application/Interfaces/IGuidService.cs
-
 public interface IGuidService
 {
     Task<ApiResponse<PagedResult<GuideDto>>> GetAllAsync(int page, int pageSize);

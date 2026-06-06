@@ -1,5 +1,3 @@
-// Application/Interfaces/IRestaurantService.cs
-
 public interface IRestaurantService
 {
     Task<ApiResponse<PagedResult<RestaurantDto>>> GetAllAsync(int page, int pageSize);

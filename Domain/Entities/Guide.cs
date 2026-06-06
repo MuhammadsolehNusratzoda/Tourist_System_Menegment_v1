@@ -1,6 +1,7 @@
 public class Guide : Base
 {
-    public Guid UserId { get; set; }        // Link to User
+    public Guid UserId { get; set; }  
+    public string Name { get; set; } = string.Empty; // Link to User
     public string? Bio { get; set; }
     public string Languages { get; set; } = string.Empty; // "Tajik, English"
     public decimal PricePerDay { get; set; }

@@ -1,5 +1,3 @@
-// Application/Interfaces/IReviewService.cs
-
 public interface IReviewService
 {
     Task<ApiResponse<PagedResult<ReviewDto>>> GetAllAsync(int page, int pageSize);
@@ -8,6 +6,6 @@ public interface IReviewService
     Task<ApiResponse<PagedResult<ReviewDto>>> GetByEntityAsync(Guid entityId, string entityType, int page, int pageSize);
     Task<ApiResponse<double>> GetAverageRatingAsync(Guid entityId, string entityType); // For caching/background
     Task<ApiResponse<ReviewDto>> CreateAsync(CreateReviewDto dto);
-    Task<ApiResponse<ReviewDto>> UpdateAsync(Guid id, UpdateReviewDto dto);
+    Task<ApiResponse<ReviewDto>> UpdateAsync(Guid id);
     Task<ApiResponse<bool>> DeleteAsync(Guid id);
 }

@@ -1,5 +1,3 @@
-// Application/Interfaces/IHotelService.cs
-
 public interface IHotelService
 {
     Task<ApiResponse<PagedResult<HotelDto>>> GetAllAsync(int page, int pageSize);
