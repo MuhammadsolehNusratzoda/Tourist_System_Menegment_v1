@@ -1,0 +1,355 @@
+@page "/bookings/create"
+@attribute [Authorize]
+@inject BookingClientService BookingSvc
+@inject HotelClientService HotelSvc
+@inject GuideClientService GuideSvc
+@inject RestaurantClientService RestaurantSvc
+@inject TransportClientService TransportSvc
+@inject ClientAuthService AuthSvc
+@inject NavigationManager Nav
+
+<PageTitle>Create Booking — TouristSystem</PageTitle>
+
+<div class="page-header">
+    <div class="ts-container">
+        <h1><i class="bi bi-calendar-plus" style="color:var(--color-accent-2);"></i> Reserve Your Trip</h1>
+        <p>Complete your booking details and confirm your reservation securely</p>
+    </div>
+</div>
+
+<div class="ts-container" style="padding-bottom:5rem;">
+    @if (!isAuthenticated)
+    {
+        <div class="ts-card" style="text-align:center; padding:3rem; max-width:600px; margin: 2rem auto;">
+            <i class="bi bi-shield-lock" style="font-size:3rem; color:var(--color-accent-2); display:block; margin-bottom:1.5rem;"></i>
+            <h2>Authentication Required</h2>
+            <p style="color:var(--color-text-muted); margin-bottom:2rem;">You need to be signed in to make reservations on our platform.</p>
+            <div style="display:flex; gap:1rem; justify-content:center;">
+                <a class="btn-ts btn-primary-ts" href="/login?returnUrl=/bookings/create">Sign In</a>
+                <a class="btn-ts btn-secondary-ts" href="/register">Register</a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="ts-grid" style="grid-template-columns: 3fr 2fr; gap:2rem; margin-top:1.5rem;">
+            <!-- Booking Form -->
+            <div>
+                <div class="ts-card" style="padding:2rem;">
+                    <h3 style="margin-bottom:1.5rem; color:#fff; font-family:var(--font-display);"><i class="bi bi-file-earmark-text"></i> Booking Information</h3>
+                    
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="ts-alert ts-alert-error"><i class="bi bi-exclamation-triangle"></i> @errorMessage</div>
+                    }
+                    @if (!string.IsNullOrEmpty(successMessage))
+                    {
+                        <div class="ts-alert ts-alert-success"><i class="bi bi-check-circle"></i> @successMessage</div>
+                    }
+
+                    <EditForm Model="bookingDto" OnValidSubmit="HandleSubmit">
+                        <DataAnnotationsValidator />
+                        
+                        <div style="margin-bottom:1.25rem;">
+                            <label class="ts-label" style="display:block; margin-bottom:0.5rem;">Booking Type</label>
+                            <select class="ts-select" @bind="bookingDto.BookingType" disabled="@isPreFilled">
+                                <option value="Hotel">Hotel Accommodation</option>
+                                <option value="Guide">Tour Guide Service</option>
+                                <option value="Transport">Transport Seat Reservation</option>
+                                <option value="Restaurant">Restaurant Table Booking</option>
+                            </select>
+                        </div>
+
+                        <div class="ts-grid" style="grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1.25rem;">
+                            <div>
+                                <label class="ts-label" style="display:block; margin-bottom:0.5rem;">Start Date / Travel Date</label>
+                                <InputDate class="ts-input" @bind-Value="bookingDto.StartDate" @oninput="OnDatesChanged" min="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                            </div>
+                            @if (bookingDto.BookingType == "Hotel" || bookingDto.BookingType == "Guide")
+                            {
+                                <div>
+                                    <label class="ts-label" style="display:block; margin-bottom:0.5rem;">End Date</label>
+                                    <InputDate class="ts-input" @bind-Value="bookingDto.EndDate" @oninput="OnDatesChanged" min="@bookingDto.StartDate.ToString("yyyy-MM-dd")" />
+                                </div>
+                            }
+                        </div>
+
+                        <div style="margin-bottom:1.5rem;">
+                            <label class="ts-label" style="display:block; margin-bottom:0.5rem;">Special Notes / Requests</label>
+                            <InputTextArea class="ts-input" @bind-Value="bookingDto.Notes" rows="4" placeholder="Any dietary preferences, early check-in requests, languages needed, or luggage details..." style="resize:vertical;" />
+                        </div>
+
+                        <button type="submit" class="btn-ts btn-primary-ts" style="width:100%; justify-content:center;" disabled="@submitting">
+                            @if (submitting)
+                            {
+                                <span class="spinner" style="width:1.2rem; height:1.2rem; margin-right:0.5rem;"></span>
+                                <span>Processing...</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-credit-card-2-front"></i> <span>Confirm Reservation</span>
+                            }
+                        </button>
+                    </EditForm>
+                </div>
+            </div>
+
+            <!-- Booking Summary Sidebar -->
+            <div>
+                <div class="ts-card" style="padding:1.5rem; position:sticky; top:90px;">
+                    <h3 style="margin-bottom:1.25rem; color:#fff; font-family:var(--font-display); border-bottom:1px solid var(--color-border); padding-bottom:0.75rem;">
+                        <i class="bi bi-receipt"></i> Summary
+                    </h3>
+
+                    @if (loadingSummary)
+                    {
+                        <div style="text-align:center; padding:2rem;">
+                            <span class="spinner"></span>
+                            <p style="margin-top:1rem; color:var(--color-text-muted); font-size:0.875rem;">Loading booking details...</p>
+                        </div>
+                    }
+                    else if (hasDetails)
+                    {
+                        <div style="margin-bottom:1.5rem; border-bottom:1px solid var(--color-border); padding-bottom:1rem;">
+                            <img src="@summaryImage" style="width:100%; height:150px; object-fit:cover; border-radius:var(--radius-md); margin-bottom:1rem;" alt="@summaryTitle" />
+                            <h4 style="color:#fff; margin-bottom:0.25rem; font-size:1.2rem;">@summaryTitle</h4>
+                            <p style="font-size:0.85rem; color:var(--color-text-dim); margin-bottom:0.5rem;">
+                                <i class="bi bi-geo-alt"></i> @summaryLocation
+                            </p>
+                            @if (summaryRating > 0)
+                            {
+                                <div style="font-size:0.85rem; color:var(--color-accent-2);">
+                                    <i class="bi bi-star-fill"></i> @summaryRating.ToString("F1") / 5.0
+                                </div>
+                            }
+                        </div>
+
+                        <div style="display:flex; flex-direction:column; gap:0.75rem; margin-bottom:1.5rem; font-size:0.9rem;">
+                            <div style="display:flex; justify-content:between;">
+                                <span style="color:var(--color-text-dim);">Base Rate:</span>
+                                <span style="color:#fff; font-weight:600; margin-left:auto;">@summaryRateDisplay</span>
+                            </div>
+                            
+                            @if (bookingDto.BookingType == "Hotel" || bookingDto.BookingType == "Guide")
+                            {
+                                <div style="display:flex; justify-content:between;">
+                                    <span style="color:var(--color-text-dim);">Duration:</span>
+                                    <span style="color:#fff; font-weight:600; margin-left:auto;">@calculatedDays Days</span>
+                                </div>
+                            }
+
+                            <div style="display:flex; justify-content:between; border-top:1px dashed var(--color-border); padding-top:0.75rem; font-size:1.1rem; font-weight:700;">
+                                <span style="color:#fff;">Estimated Total:</span>
+                                <span style="color:var(--color-accent-2); margin-left:auto;">$@calculatedTotal.ToString("N2")</span>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div style="text-align:center; padding:2rem; color:var(--color-text-dim);">
+                            <i class="bi bi-bag-plus" style="font-size:2rem; display:block; margin-bottom:0.75rem;"></i>
+                            <p style="font-size:0.875rem;">Select an item from the main listings to view exact price estimation.</p>
+                        </div>
+                    }
+
+                    <div style="background:var(--color-surface-2); border-radius:var(--radius-sm); padding:0.75rem; font-size:0.75rem; color:var(--color-text-muted);">
+                        <i class="bi bi-info-circle-fill" style="color:var(--color-accent-2); margin-right:4px;"></i>
+                        No payment is required today. You will pay the provider directly at check-in or service execution.
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "type")] public string? TypeQuery { get; set; }
+    [SupplyParameterFromQuery(Name = "id")] public string? IdQuery { get; set; }
+
+    private CreateBookingDto bookingDto = new();
+    private bool isAuthenticated = false;
+    private bool isPreFilled = false;
+    private bool loadingSummary = false;
+    private bool submitting = false;
+    
+    private string errorMessage = "";
+    private string successMessage = "";
+
+    // Sidebar Summary Details
+    private bool hasDetails = false;
+    private string summaryTitle = "";
+    private string summaryImage = "";
+    private string summaryLocation = "";
+    private decimal summaryRating = 0;
+    private decimal basePrice = 0;
+    private string summaryRateDisplay = "";
+    private int calculatedDays = 1;
+    private decimal calculatedTotal = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = await AuthSvc.GetCurrentUserAsync();
+        isAuthenticated = user != null;
+
+        if (isAuthenticated)
+        {
+            if (!string.IsNullOrEmpty(TypeQuery) && !string.IsNullOrEmpty(IdQuery) && Guid.TryParse(IdQuery, out var parsedId))
+            {
+                isPreFilled = true;
+                bookingDto.BookingType = TypeQuery;
+                bookingDto.ReferenceId = parsedId;
+                await LoadSummaryDetails();
+            }
+            else
+            {
+                RecalculatePrice();
+            }
+        }
+    }
+
+    private async Task LoadSummaryDetails()
+    {
+        loadingSummary = true;
+        hasDetails = false;
+        StateHasChanged();
+
+        try
+        {
+            if (bookingDto.BookingType == "Hotel")
+            {
+                var hotel = await HotelSvc.GetByIdAsync(bookingDto.ReferenceId);
+                if (hotel != null)
+                {
+                    summaryTitle = hotel.Name;
+                    summaryImage = hotel.ImageUrl ?? "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800";
+                    summaryLocation = hotel.Location;
+                    summaryRating = hotel.Rating;
+                    basePrice = hotel.PricePerNight;
+                    summaryRateDisplay = $"${hotel.PricePerNight} / night";
+                    hasDetails = true;
+                }
+            }
+            else if (bookingDto.BookingType == "Guide")
+            {
+                var guide = await GuideSvc.GetByIdAsync(bookingDto.ReferenceId);
+                if (guide != null)
+                {
+                    summaryTitle = guide.Name;
+                    summaryImage = guide.ImageUrl ?? "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400";
+                    summaryLocation = guide.Languages;
+                    summaryRating = guide.Rating;
+                    basePrice = guide.PricePerDay;
+                    summaryRateDisplay = $"${guide.PricePerDay} / day";
+                    hasDetails = true;
+                }
+            }
+            else if (bookingDto.BookingType == "Transport")
+            {
+                var result = await TransportSvc.GetAllAsync();
+                var transport = result.Items.FirstOrDefault(t => t.Id == bookingDto.ReferenceId);
+                if (transport != null)
+                {
+                    summaryTitle = transport.Name;
+                    summaryImage = "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=800"; // General transport image
+                    summaryLocation = $"{transport.Origin} to {transport.Destination}";
+                    summaryRating = 0;
+                    basePrice = transport.PricePerSeat;
+                    summaryRateDisplay = $"${transport.PricePerSeat} / seat";
+                    hasDetails = true;
+                }
+            }
+            else if (bookingDto.BookingType == "Restaurant")
+            {
+                var result = await RestaurantSvc.GetAllAsync();
+                var rest = result.Items.FirstOrDefault(r => r.Id == bookingDto.ReferenceId);
+                if (rest != null)
+                {
+                    summaryTitle = rest.Name;
+                    summaryImage = rest.ImageUrl ?? "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800";
+                    summaryLocation = rest.Location;
+                    summaryRating = rest.Rating;
+                    basePrice = 0; // Flat deposit or no reservation fee
+                    summaryRateDisplay = "Free Reservation";
+                    hasDetails = true;
+                }
+            }
+        }
+        catch (Exception)
+        {
+            hasDetails = false;
+        }
+
+        loadingSummary = false;
+        RecalculatePrice();
+    }
+
+    private void OnDatesChanged()
+    {
+        RecalculatePrice();
+    }
+
+    private void RecalculatePrice()
+    {
+        if (bookingDto.EndDate < bookingDto.StartDate)
+        {
+            bookingDto.EndDate = bookingDto.StartDate.AddDays(1);
+        }
+
+        calculatedDays = (bookingDto.EndDate - bookingDto.StartDate).Days;
+        if (calculatedDays <= 0) calculatedDays = 1;
+
+        if (hasDetails)
+        {
+            if (bookingDto.BookingType == "Hotel" || bookingDto.BookingType == "Guide")
+            {
+                calculatedTotal = basePrice * calculatedDays;
+            }
+            else
+            {
+                // Transport and Restaurants are flat fees (or seat fees, booking 1 seat by default here)
+                calculatedTotal = basePrice;
+            }
+        }
+        else
+        {
+            calculatedTotal = 0;
+        }
+        StateHasChanged();
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (bookingDto.BookingType == "Hotel" || bookingDto.BookingType == "Guide")
+        {
+            if (bookingDto.EndDate <= bookingDto.StartDate)
+            {
+                errorMessage = "End date must be after start date.";
+                return;
+            }
+        }
+
+        submitting = true;
+        errorMessage = "";
+        successMessage = "";
+        StateHasChanged();
+
+        var (success, msg) = await BookingSvc.CreateAsync(bookingDto);
+
+        if (success)
+        {
+            successMessage = msg;
+            submitting = false;
+            StateHasChanged();
+            
+            // Wait 2 seconds, then navigate to My Bookings
+            await Task.Delay(2000);
+            Nav.NavigateTo("/bookings/my");
+        }
+        else
+        {
+            errorMessage = msg;
+            submitting = false;
+            StateHasChanged();
+        }
+    }
+}

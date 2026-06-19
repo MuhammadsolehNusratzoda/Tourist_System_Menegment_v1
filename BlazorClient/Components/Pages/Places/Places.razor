@@ -1,0 +1,149 @@
+@page "/places"
+@inject PlaceClientService PlaceSvc
+
+<PageTitle>Tourist Places — TouristSystem</PageTitle>
+
+<div class="page-header">
+    <div class="ts-container">
+        <h1><i class="bi bi-map" style="color:var(--color-accent-2);"></i> Tourist Places</h1>
+        <p>Discover Tajikistan's most breathtaking destinations — from ancient fortresses to alpine lakes</p>
+    </div>
+</div>
+
+<div class="ts-container" style="padding-bottom:4rem;">
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+        <div style="display:flex; align-items:center; gap:0.5rem; flex:1; min-width:200px; max-width:320px;">
+            <i class="bi bi-search" style="color:var(--color-text-dim);"></i>
+            <input class="ts-input" @bind="searchQuery" @bind:event="oninput" placeholder="Search places..." style="border:none; padding:0; background:none; box-shadow:none;" />
+        </div>
+        <input class="ts-input" @bind="locationFilter" placeholder="Filter by location..." style="max-width:200px;" />
+        <select class="ts-select" @bind="sortBy" style="max-width:180px;">
+            <option value="rating">Sort: Top Rated</option>
+            <option value="fee_asc">Sort: Entry Fee (Low)</option>
+            <option value="fee_desc">Sort: Entry Fee (High)</option>
+            <option value="name">Sort: A-Z</option>
+        </select>
+        <button class="btn-ts btn-primary-ts btn-sm-ts" @onclick="LoadPlaces">
+            <i class="bi bi-funnel"></i> Filter
+        </button>
+    </div>
+
+    @if (loading)
+    {
+        <div class="ts-spinner"><div class="spinner"></div></div>
+    }
+    else if (places.Count == 0)
+    {
+        <div style="text-align:center; padding:4rem; color:var(--color-text-muted);">
+            <i class="bi bi-map" style="font-size:3rem; display:block; margin-bottom:1rem;"></i>
+            <h3>No places found</h3>
+            <p>Try adjusting your search</p>
+        </div>
+    }
+    else
+    {
+        <div style="color:var(--color-text-muted); font-size:0.875rem; margin-bottom:1.5rem;">
+            Showing @places.Count of @totalCount places
+        </div>
+
+        <div class="ts-grid ts-grid-3">
+            @foreach (var place in places)
+            {
+                <div class="ts-card">
+                    <div class="ts-card-img-wrap">
+                        <img class="ts-card-img" src="@(place.ImageUrl ?? "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800")" alt="@place.Name" loading="lazy" />
+                        @if (place.EntryFee == 0)
+                        {
+                            <span class="ts-card-badge" style="color:var(--color-success);">Free Entry</span>
+                        }
+                        else
+                        {
+                            <span class="ts-card-badge">$@place.EntryFee entry</span>
+                        }
+                        <span class="ts-card-rating"><i class="bi bi-star-fill"></i> @place.Rating.ToString("F1")</span>
+                    </div>
+                    <div class="ts-card-body">
+                        <div class="ts-card-title">@place.Name</div>
+                        <p class="ts-card-text">@place.Description</p>
+                        <div class="ts-card-location" style="margin-bottom:1rem;">
+                            <i class="bi bi-geo-alt"></i> @place.Location
+                        </div>
+                        <a href="/places/@place.Id" class="btn-ts btn-primary-ts btn-sm-ts" style="width:100%; justify-content:center;">
+                            Explore <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @if (totalPages > 1)
+        {
+            <div class="ts-pagination">
+                <button class="ts-page-btn" @onclick="PrevPage" disabled="@(currentPage == 1)">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+                @for (int i = 1; i <= totalPages; i++)
+                {
+                    var pg = i;
+                    <button class="ts-page-btn @(pg == currentPage ? "active" : "")" @onclick="() => GoToPage(pg)">@pg</button>
+                }
+                <button class="ts-page-btn" @onclick="NextPage" disabled="@(currentPage == totalPages)">
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "q")] public string? QueryParam { get; set; }
+
+    private List<PlaceDto> places = new();
+    private bool loading = true;
+    private int currentPage = 1;
+    private int totalPages = 1;
+    private int totalCount = 0;
+    private string searchQuery = "";
+    private string locationFilter = "";
+    private string sortBy = "rating";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrEmpty(QueryParam)) searchQuery = QueryParam;
+        await LoadPlaces();
+    }
+
+    private async Task LoadPlaces()
+    {
+        loading = true;
+        StateHasChanged();
+
+        var result = await PlaceSvc.GetAllAsync(
+            string.IsNullOrEmpty(locationFilter) ? null : locationFilter,
+            currentPage, 6);
+
+        totalCount = result.TotalCount;
+        totalPages = result.TotalPages;
+        places = result.Items;
+
+        if (!string.IsNullOrEmpty(searchQuery))
+            places = places.Where(p =>
+                p.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                (p.Description?.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ?? false)).ToList();
+
+        places = sortBy switch
+        {
+            "fee_asc" => places.OrderBy(p => p.EntryFee).ToList(),
+            "fee_desc" => places.OrderByDescending(p => p.EntryFee).ToList(),
+            "name" => places.OrderBy(p => p.Name).ToList(),
+            _ => places.OrderByDescending(p => p.Rating).ToList()
+        };
+
+        loading = false;
+    }
+
+    private async Task PrevPage() { if (currentPage > 1) { currentPage--; await LoadPlaces(); } }
+    private async Task NextPage() { if (currentPage < totalPages) { currentPage++; await LoadPlaces(); } }
+    private async Task GoToPage(int page) { currentPage = page; await LoadPlaces(); }
+}

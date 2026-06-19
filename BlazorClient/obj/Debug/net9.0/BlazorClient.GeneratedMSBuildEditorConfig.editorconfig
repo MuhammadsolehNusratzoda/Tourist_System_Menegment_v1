@@ -72,12 +72,20 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xIb3RlbHNcSG90ZWxzLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Users/Сухайб/Desktop/TouristSystem/BlazorClient/Components/Pages/Login.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xMb2dpbi5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/Сухайб/Desktop/TouristSystem/BlazorClient/Components/Pages/Places/PlaceDetail.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xQbGFjZXNcUGxhY2VEZXRhaWwucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/Сухайб/Desktop/TouristSystem/BlazorClient/Components/Pages/Places/Places.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xQbGFjZXNcUGxhY2VzLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Сухайб/Desktop/TouristSystem/BlazorClient/Components/Pages/Register.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xSZWdpc3Rlci5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/Сухайб/Desktop/TouristSystem/BlazorClient/Components/Pages/Restaurants/Restaurants.razor]

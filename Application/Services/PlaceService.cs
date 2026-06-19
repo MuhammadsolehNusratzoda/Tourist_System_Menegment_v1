@@ -1,3 +1,5 @@
+using AutoMapper;
+
 public class PlaceService : IPlaceService
 {
     private readonly IPlaceRepository _repo;

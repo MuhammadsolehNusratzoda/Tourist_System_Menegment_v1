@@ -1,0 +1,169 @@
+@page "/transport"
+@inject TransportClientService TransportSvc
+@inject NavigationManager Nav
+
+<PageTitle>Transport Schedule — TouristSystem</PageTitle>
+
+<div class="page-header">
+    <div class="ts-container">
+        <h1><i class="bi bi-truck" style="color:var(--color-accent-2);"></i> Transport Routes</h1>
+        <p>Book local transport services including intercity buses, trains, and private mountain jeeps</p>
+    </div>
+</div>
+
+<div class="ts-container" style="padding-bottom:4rem;">
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+        <select class="ts-select" @bind="typeFilter" style="max-width:180px;">
+            <option value="">All Types</option>
+            <option value="Bus">Bus</option>
+            <option value="Train">Train</option>
+            <option value="Taxi">Taxi</option>
+            <option value="Car">Jeep / SUV</option>
+        </select>
+        <div style="display:flex; align-items:center; gap:0.5rem; flex:1; min-width:150px; max-width:250px;">
+            <i class="bi bi-geo-alt" style="color:var(--color-text-dim);"></i>
+            <input class="ts-input" @bind="originFilter" @bind:event="oninput" placeholder="From (Origin)..." style="border:none; padding:0; background:none; box-shadow:none;" />
+        </div>
+        <div style="display:flex; align-items:center; gap:0.5rem; flex:1; min-width:150px; max-width:250px;">
+            <i class="bi bi-geo" style="color:var(--color-text-dim);"></i>
+            <input class="ts-input" @bind="destFilter" @bind:event="oninput" placeholder="To (Destination)..." style="border:none; padding:0; background:none; box-shadow:none;" />
+        </div>
+        <button class="btn-ts btn-primary-ts btn-sm-ts" @onclick="LoadTransport">
+            <i class="bi bi-funnel"></i> Filter
+        </button>
+    </div>
+
+    @if (loading)
+    {
+        <div class="ts-spinner"><div class="spinner"></div></div>
+    }
+    else if (transports.Count == 0)
+    {
+        <div style="text-align:center; padding:4rem; color:var(--color-text-muted);">
+            <i class="bi bi-truck" style="font-size:3rem; display:block; margin-bottom:1rem;"></i>
+            <h3>No transport routes found</h3>
+            <p>Try altering your travel cities or type filter</p>
+        </div>
+    }
+    else
+    {
+        <div style="color:var(--color-text-muted); font-size:0.875rem; margin-bottom:1.5rem;">
+            Showing @transports.Count of @totalCount routes
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:1.25rem;">
+            @foreach (var transport in transports)
+            {
+                <div class="transport-card">
+                    <div class="transport-type-icon">
+                        <i class="bi @transport.TypeIcon"></i>
+                    </div>
+                    
+                    <div>
+                        <div style="font-size:1.1rem; font-weight:700; color:#fff; margin-bottom:0.5rem;">@transport.Name</div>
+                        <div class="transport-route">
+                            <div>
+                                <span class="transport-city">@transport.Origin</span>
+                                <span class="transport-time" style="display:block; margin-top:2px;">
+                                    @transport.DepartureTime.ToString("MMM dd, HH:mm")
+                                </span>
+                            </div>
+                            
+                            <div style="display:flex; flex-direction:column; align-items:center; min-width:80px;">
+                                <i class="bi bi-arrow-right transport-arrow"></i>
+                                <span style="font-size:0.75rem; color:var(--color-text-dim); margin-top:2px;">@transport.DurationDisplay</span>
+                            </div>
+
+                            <div>
+                                <span class="transport-city">@transport.Destination</span>
+                                <span class="transport-time" style="display:block; margin-top:2px;">
+                                    @transport.ArrivalTime.ToString("MMM dd, HH:mm")
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="transport-price-col" style="display:flex; flex-direction:column; align-items:flex-end;">
+                        <span class="transport-price">$@transport.PricePerSeat</span>
+                        <span class="transport-seats">@transport.AvailableSeats seats left</span>
+                        <button class="btn-ts btn-primary-ts btn-sm-ts" style="margin-top:0.75rem; padding:0.4rem 1.25rem;" @onclick="() => BookSeat(transport)">
+                            Book Seat
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @if (totalPages > 1)
+        {
+            <div class="ts-pagination" style="margin-top:2rem;">
+                <button class="ts-page-btn" @onclick="PrevPage" disabled="@(currentPage == 1)">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+                @for (int i = 1; i <= totalPages; i++)
+                {
+                    var pg = i;
+                    <button class="ts-page-btn @(pg == currentPage ? "active" : "")" @onclick="() => GoToPage(pg)">@pg</button>
+                }
+                <button class="ts-page-btn" @onclick="NextPage" disabled="@(currentPage == totalPages)">
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private List<TransportDto> transports = new();
+    private bool loading = true;
+    private int currentPage = 1;
+    private int totalPages = 1;
+    private int totalCount = 0;
+    
+    private string typeFilter = "";
+    private string originFilter = "";
+    private string destFilter = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTransport();
+    }
+
+    private async Task LoadTransport()
+    {
+        loading = true;
+        StateHasChanged();
+
+        var result = await TransportSvc.GetAllAsync(
+            string.IsNullOrEmpty(typeFilter) ? null : typeFilter,
+            currentPage, 6);
+
+        totalCount = result.TotalCount;
+        totalPages = result.TotalPages;
+        transports = result.Items;
+
+        if (!string.IsNullOrEmpty(originFilter))
+        {
+            transports = transports.Where(t => 
+                t.Origin.Contains(originFilter, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        if (!string.IsNullOrEmpty(destFilter))
+        {
+            transports = transports.Where(t => 
+                t.Destination.Contains(destFilter, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        loading = false;
+    }
+
+    private void BookSeat(TransportDto transport)
+    {
+        Nav.NavigateTo($"/bookings/create?type=Transport&id={transport.Id}");
+    }
+
+    private async Task PrevPage() { if (currentPage > 1) { currentPage--; await LoadTransport(); } }
+    private async Task NextPage() { if (currentPage < totalPages) { currentPage++; await LoadTransport(); } }
+    private async Task GoToPage(int page) { currentPage = page; await LoadTransport(); }
+}

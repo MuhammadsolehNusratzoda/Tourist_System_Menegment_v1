@@ -1,0 +1,170 @@
+@page "/restaurants"
+@inject RestaurantClientService RestaurantSvc
+@inject NavigationManager Nav
+
+<PageTitle>Dining & Restaurants — TouristSystem</PageTitle>
+
+<div class="page-header">
+    <div class="ts-container">
+        <h1><i class="bi bi-cup-hot" style="color:var(--color-accent-2);"></i> Restaurants</h1>
+        <p>Indulge in traditional Tajik delicacies, Pamiri food, and international cuisines at top-rated dining venues</p>
+    </div>
+</div>
+
+<div class="ts-container" style="padding-bottom:4rem;">
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+        <div style="display:flex; align-items:center; gap:0.5rem; flex:1; min-width:200px; max-width:320px;">
+            <i class="bi bi-search" style="color:var(--color-text-dim);"></i>
+            <input class="ts-input" @bind="searchQuery" @bind:event="oninput" placeholder="Search restaurants..." style="border:none; padding:0; background:none; box-shadow:none;" />
+        </div>
+        <input class="ts-input" @bind="cuisineFilter" placeholder="Filter by cuisine..." style="max-width:200px;" />
+        <select class="ts-select" @bind="priceFilter" style="max-width:150px;">
+            <option value="">All Prices</option>
+            <option value="$">$ (Budget)</option>
+            <option value="$$">$$ (Moderate)</option>
+            <option value="$$$">$$$ (Fine Dining)</option>
+        </select>
+        <select class="ts-select" @bind="sortBy" style="max-width:180px;">
+            <option value="rating">Sort: Top Rated</option>
+            <option value="name">Sort: A-Z</option>
+        </select>
+        <button class="btn-ts btn-primary-ts btn-sm-ts" @onclick="LoadRestaurants">
+            <i class="bi bi-funnel"></i> Filter
+        </button>
+    </div>
+
+    @if (loading)
+    {
+        <div class="ts-spinner"><div class="spinner"></div></div>
+    }
+    else if (restaurants.Count == 0)
+    {
+        <div style="text-align:center; padding:4rem; color:var(--color-text-muted);">
+            <i class="bi bi-cup-hot" style="font-size:3rem; display:block; margin-bottom:1rem;"></i>
+            <h3>No restaurants found</h3>
+            <p>Try adjusting your search criteria</p>
+        </div>
+    }
+    else
+    {
+        <div style="color:var(--color-text-muted); font-size:0.875rem; margin-bottom:1.5rem;">
+            Showing @restaurants.Count of @totalCount restaurants
+        </div>
+
+        <div class="ts-grid ts-grid-3">
+            @foreach (var restaurant in restaurants)
+            {
+                <div class="ts-card">
+                    <div class="ts-card-img-wrap">
+                        <img class="ts-card-img" src="@(restaurant.ImageUrl ?? "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800")" alt="@restaurant.Name" loading="lazy" />
+                        <span class="ts-card-badge">@restaurant.PriceRange</span>
+                        <span class="ts-card-rating"><i class="bi bi-star-fill"></i> @restaurant.Rating.ToString("F1")</span>
+                    </div>
+                    <div class="ts-card-body">
+                        <div class="ts-card-title">@restaurant.Name</div>
+                        <div style="margin-bottom:0.75rem;">
+                            <span style="font-size:0.75rem; font-weight:600; padding:0.25rem 0.5rem; border-radius:var(--radius-sm); background:var(--color-accent-glow); color:var(--color-accent-2);">
+                                @restaurant.CuisineType Cuisine
+                            </span>
+                        </div>
+                        <p class="ts-card-text" style="font-size:0.875rem; height:60px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; margin-bottom:1rem;">
+                            @restaurant.Description
+                        </p>
+                        
+                        <div style="font-size:0.8rem; color:var(--color-text-dim); display:flex; flex-direction:column; gap:0.4rem; margin-bottom:1.25rem;">
+                            <div><i class="bi bi-geo-alt" style="color:var(--color-accent-2); margin-right:6px;"></i> @restaurant.Location</div>
+                            <div><i class="bi bi-clock" style="color:var(--color-accent-2); margin-right:6px;"></i> @restaurant.OpeningHours</div>
+                            <div><i class="bi bi-telephone" style="color:var(--color-accent-2); margin-right:6px;"></i> @restaurant.PhoneNumber</div>
+                        </div>
+
+                        <button class="btn-ts btn-primary-ts btn-sm-ts" style="width:100%; justify-content:center;" @onclick="() => BookTable(restaurant)">
+                            <i class="bi bi-calendar-check"></i> Book Table
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @if (totalPages > 1)
+        {
+            <div class="ts-pagination">
+                <button class="ts-page-btn" @onclick="PrevPage" disabled="@(currentPage == 1)">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+                @for (int i = 1; i <= totalPages; i++)
+                {
+                    var pg = i;
+                    <button class="ts-page-btn @(pg == currentPage ? "active" : "")" @onclick="() => GoToPage(pg)">@pg</button>
+                }
+                <button class="ts-page-btn" @onclick="NextPage" disabled="@(currentPage == totalPages)">
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private List<RestaurantDto> restaurants = new();
+    private bool loading = true;
+    private int currentPage = 1;
+    private int totalPages = 1;
+    private int totalCount = 0;
+    private string searchQuery = "";
+    private string cuisineFilter = "";
+    private string priceFilter = "";
+    private string sortBy = "rating";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRestaurants();
+    }
+
+    private async Task LoadRestaurants()
+    {
+        loading = true;
+        StateHasChanged();
+
+        var result = await RestaurantSvc.GetAllAsync(currentPage, 6);
+
+        totalCount = result.TotalCount;
+        totalPages = result.TotalPages;
+        restaurants = result.Items;
+
+        if (!string.IsNullOrEmpty(searchQuery))
+        {
+            restaurants = restaurants.Where(r => 
+                r.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) || 
+                (r.Description?.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ?? false)).ToList();
+        }
+
+        if (!string.IsNullOrEmpty(cuisineFilter))
+        {
+            restaurants = restaurants.Where(r => 
+                r.CuisineType.Contains(cuisineFilter, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        if (!string.IsNullOrEmpty(priceFilter))
+        {
+            restaurants = restaurants.Where(r => r.PriceRange == priceFilter).ToList();
+        }
+
+        restaurants = sortBy switch
+        {
+            "name" => restaurants.OrderBy(r => r.Name).ToList(),
+            _ => restaurants.OrderByDescending(r => r.Rating).ToList()
+        };
+
+        loading = false;
+    }
+
+    private void BookTable(RestaurantDto restaurant)
+    {
+        Nav.NavigateTo($"/bookings/create?type=Restaurant&id={restaurant.Id}");
+    }
+
+    private async Task PrevPage() { if (currentPage > 1) { currentPage--; await LoadRestaurants(); } }
+    private async Task NextPage() { if (currentPage < totalPages) { currentPage++; await LoadRestaurants(); } }
+    private async Task GoToPage(int page) { currentPage = page; await LoadRestaurants(); }
+}

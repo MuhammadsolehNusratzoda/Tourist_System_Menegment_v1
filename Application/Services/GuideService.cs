@@ -1,5 +1,7 @@
 
-public class GuideService : IGuidService
+using Microsoft.EntityFrameworkCore;
+
+public class GuideService : IGuideService
 {
     private readonly AppDbContext _context;
 
@@ -22,11 +24,15 @@ public class GuideService : IGuidService
                 Id = g.Id,
                 Name = g.Name,
                 Languages = g.Languages,
-                Rating = g.Rating
+                Rating = g.Rating,
+                PricePerDay = g.PricePerDay,
+                ExperienceYears = g.ExperienceYears,
+                Bio = g.Bio,
+                ImageUrl = g.ImageUrl
             })
             .ToListAsync();
 
-        return ApiResponse<PagedResult<GuideDto>>.Success(new PagedResult<GuideDto>
+        return ApiResponse<PagedResult<GuideDto>>.Ok(new PagedResult<GuideDto>
         {
             Items = items,
             TotalCount = total,
@@ -40,14 +46,18 @@ public class GuideService : IGuidService
         var guide = await _context.Guides.FindAsync(id);
 
         if (guide == null)
-            return ApiResponse<GuideDto>.Failure("Guide not found");
+            return ApiResponse<GuideDto>.Fail("Guide not found");
 
-        return ApiResponse<GuideDto>.Success(new GuideDto
+        return ApiResponse<GuideDto>.Ok(new GuideDto
         {
             Id = guide.Id,
             Name = guide.Name,
             Languages = guide.Languages,
-            Rating = guide.Rating
+            Rating = guide.Rating,
+            PricePerDay = guide.PricePerDay,
+            ExperienceYears = guide.ExperienceYears,
+            Bio = guide.Bio,
+            ImageUrl = guide.ImageUrl
         });
     }
 
@@ -65,11 +75,15 @@ public class GuideService : IGuidService
                 Id = g.Id,
                 Name = g.Name,
                 Languages = g.Languages,
-                Rating = g.Rating
+                Rating = g.Rating,
+                PricePerDay = g.PricePerDay,
+                ExperienceYears = g.ExperienceYears,
+                Bio = g.Bio,
+                ImageUrl = g.ImageUrl
             })
             .ToListAsync();
 
-        return ApiResponse<PagedResult<GuideDto>>.Success(new PagedResult<GuideDto>
+        return ApiResponse<PagedResult<GuideDto>>.Ok(new PagedResult<GuideDto>
         {
             Items = items,
             TotalCount = total,
@@ -88,11 +102,15 @@ public class GuideService : IGuidService
                 Id = g.Id,
                 Name = g.Name,
                 Languages = g.Languages,
-                Rating = g.Rating
+                Rating = g.Rating,
+                PricePerDay = g.PricePerDay,
+                ExperienceYears = g.ExperienceYears,
+                Bio = g.Bio,
+                ImageUrl = g.ImageUrl
             })
             .ToListAsync();
 
-        return ApiResponse<List<GuideDto>>.Success(guides);
+        return ApiResponse<List<GuideDto>>.Ok(guides);
     }
 
     public async Task<ApiResponse<GuideDto>> CreateAsync(CreateGuideDto dto)
@@ -100,9 +118,14 @@ public class GuideService : IGuidService
         var guide = new Guide
         {
             Id = Guid.NewGuid(),
+            UserId = dto.UserId,
             Name = dto.Name,
+            Bio = dto.Bio,
             Languages = dto.Languages,
-            Rating = dto.Rating
+            PricePerDay = dto.PricePerDay,
+            ExperienceYears = dto.ExperienceYears,
+            Rating = 0,
+            ImageUrl = dto.ImageUrl
         };
 
         _context.Guides.Add(guide);
@@ -116,11 +139,14 @@ public class GuideService : IGuidService
         var guide = await _context.Guides.FindAsync(id);
 
         if (guide == null)
-            return ApiResponse<GuideDto>.Failure("Guide not found");
+            return ApiResponse<GuideDto>.Fail("Guide not found");
 
-        guide.Name = dto.Name;
+        guide.Name = dto.Name ?? guide.Name;
+        guide.Bio = dto.Bio ?? guide.Bio;
         guide.Languages = dto.Languages ?? guide.Languages;
-        guide.Rating = dto.Rating;
+        guide.PricePerDay = dto.PricePerDay ?? guide.PricePerDay;
+        guide.ExperienceYears = dto.ExperienceYears ?? guide.ExperienceYears;
+        guide.ImageUrl = dto.ImageUrl ?? guide.ImageUrl;
 
         await _context.SaveChangesAsync();
 
@@ -132,11 +158,11 @@ public class GuideService : IGuidService
         var guide = await _context.Guides.FindAsync(id);
 
         if (guide == null)
-            return ApiResponse<bool>.Failure("Guide not found");
+            return ApiResponse<bool>.Fail("Guide not found");
 
         _context.Guides.Remove(guide);
         await _context.SaveChangesAsync();
 
-        return ApiResponse<bool>.Success(true);
+        return ApiResponse<bool>.Ok(true);
     }
 }

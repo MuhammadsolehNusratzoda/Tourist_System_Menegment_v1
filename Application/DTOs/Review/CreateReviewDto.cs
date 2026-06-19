@@ -6,4 +6,6 @@ public class CreateReviewDto
     [Required] public Guid ReferenceId { get; set; }
     [Range(1, 5)] public int Rating { get; set; }
     public string? Comment { get; set; }
+    // Set by server from auth token (not provided by client)
+    public Guid UserId { get; set; }
 }

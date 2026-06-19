@@ -1,0 +1,280 @@
+@page "/admin/hotels"
+@attribute [Authorize(Roles = "Admin")]
+@inject HotelClientService HotelSvc
+
+<PageTitle>Manage Hotels — Admin — TouristSystem</PageTitle>
+
+<div class="page-header">
+    <div class="ts-container" style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+            <h1><i class="bi bi-building" style="color:var(--color-accent-2);"></i> Hotel Inventory</h1>
+            <p>Manage listings, update pricing, and audit hotel accommodations</p>
+        </div>
+        <button class="btn-ts btn-primary-ts" @onclick="ToggleAddForm">
+            <i class="bi @(showAddForm ? "bi-x-circle" : "bi-plus-circle")"></i>
+            @(showAddForm ? "Close Form" : "Add Hotel")
+        </button>
+    </div>
+</div>
+
+<div class="ts-container" style="padding-bottom:5rem; margin-top:2rem;">
+    <!-- Add Form (Glassmorphism card) -->
+    @if (showAddForm)
+    {
+        <div class="ts-card" style="padding:2rem; margin-bottom:2.5rem;">
+            <h3 style="color:#fff; font-family:var(--font-display); margin-bottom:1.5rem;">
+                <i class="bi bi-plus-square"></i> Add New Hotel Listing
+            </h3>
+
+            @if (!string.IsNullOrEmpty(alertMessage))
+            {
+                <div class="ts-alert @(alertIsSuccess ? "ts-alert-success" : "ts-alert-error")">
+                    <i class="bi @(alertIsSuccess ? "bi-check-circle" : "bi-exclamation-triangle")"></i>
+                    @alertMessage
+                </div>
+            }
+
+            <EditForm Model="createDto" OnValidSubmit="HandleAddHotel">
+                <DataAnnotationsValidator />
+                
+                <div class="ts-grid" style="grid-template-columns: 1fr 1fr; gap:1.25rem; margin-bottom:1.25rem;">
+                    <div>
+                        <label class="ts-label" style="display:block; margin-bottom:0.5rem;">Hotel Name</label>
+                        <InputText class="ts-input" @bind-Value="createDto.Name" placeholder="e.g. Hyatt Regency" required />
+                    </div>
+                    <div>
+                        <label class="ts-label" style="display:block; margin-bottom:0.5rem;">Location (City/Region)</label>
+                        <InputText class="ts-input" @bind-Value="createDto.Location" placeholder="e.g. Dushanbe" required />
+                    </div>
+                </div>
+
+                <div class="ts-grid" style="grid-template-columns: 1fr 1fr; gap:1.25rem; margin-bottom:1.25rem;">
+                    <div>
+                        <label class="ts-label" style="display:block; margin-bottom:0.5rem;">Price per Night ($ USD)</label>
+                        <InputNumber class="ts-input" @bind-Value="createDto.PricePerNight" min="0" required />
+                    </div>
+                    <div>
+                        <label class="ts-label" style="display:block; margin-bottom:0.5rem;">Stars Category</label>
+                        <select class="ts-select" @bind="createDto.Stars">
+                            <option value="1">1 Star</option>
+                            <option value="2">2 Stars</option>
+                            <option value="3">3 Stars</option>
+                            <option value="4">4 Stars</option>
+                            <option value="5">5 Stars</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="margin-bottom:1.25rem;">
+                    <label class="ts-label" style="display:block; margin-bottom:0.5rem;">Image URL</label>
+                    <InputText class="ts-input" @bind-Value="createDto.ImageUrl" placeholder="https://unsplash.com/... or leave blank for default" />
+                </div>
+
+                <div style="margin-bottom:1.5rem;">
+                    <label class="ts-label" style="display:block; margin-bottom:0.5rem;">Description / Overview</label>
+                    <InputTextArea class="ts-input" @bind-Value="createDto.Description" rows="3" placeholder="Describe the hotel's style, location, views, and room qualities..." required />
+                </div>
+
+                <div style="display:flex; gap:1rem; justify-content:flex-end;">
+                    <button type="button" class="btn-ts btn-secondary-ts" @onclick="ToggleAddForm">Cancel</button>
+                    <button type="submit" class="btn-ts btn-primary-ts" disabled="@submitting">
+                        @if (submitting)
+                        {
+                            <span class="spinner" style="width:1rem; height:1rem; margin-right:4px;"></span>
+                        }
+                        Confirm Add Listing
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    }
+
+    <!-- Listings Table -->
+    <div class="ts-card" style="padding:1.5rem;">
+        <h3 style="color:#fff; font-family:var(--font-display); margin-bottom:1.5rem; border-bottom:1px solid var(--color-border); padding-bottom:0.75rem;">
+            <i class="bi bi-list-stars"></i> Hotel Catalog
+        </h3>
+
+        @if (loading)
+        {
+            <div class="ts-spinner"><div class="spinner"></div></div>
+        }
+        else if (hotels.Count == 0)
+        {
+            <p style="text-align:center; color:var(--color-text-dim); padding:2rem;">No hotels registered in system.</p>
+        }
+        else
+        {
+            <div class="ts-table-wrap">
+                <table class="ts-table">
+                    <thead>
+                        <tr>
+                            <th style="width:10%;">Image</th>
+                            <th style="width:25%;">Hotel Name</th>
+                            <th style="width:20%;">Location</th>
+                            <th style="width:15%;">Rating</th>
+                            <th style="width:15%;">Price / Night</th>
+                            <th style="text-align:right; width:15%;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var hotel in hotels)
+                        {
+                            <tr>
+                                <td>
+                                    <img src="@(hotel.ImageUrl ?? "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800")" style="width:50px; height:50px; object-fit:cover; border-radius:var(--radius-sm);" alt="hotel" />
+                                </td>
+                                <td>
+                                    <div style="font-weight:600; color:#fff;">@hotel.Name</div>
+                                    <div style="font-size:0.75rem; color:var(--color-text-muted);">@hotel.StarsDisplay</div>
+                                </td>
+                                <td>
+                                    <span style="font-size:0.85rem;"><i class="bi bi-geo-alt" style="color:var(--color-accent-2);"></i> @hotel.Location</span>
+                                </td>
+                                <td>
+                                    <span style="font-size:0.85rem; color:var(--color-accent-2); font-weight:600;"><i class="bi bi-star-fill"></i> @hotel.Rating.ToString("F1")</span>
+                                </td>
+                                <td>
+                                    <span style="font-weight:700; color:var(--color-accent-2); font-size:0.95rem;">$@hotel.PricePerNight</span>
+                                </td>
+                                <td style="text-align:right;">
+                                    <button class="btn-ts btn-danger-ts btn-sm-ts" @onclick="() => ConfirmDelete(hotel.Id)" disabled="@deletingId.Contains(hotel.Id)">
+                                        @if (deletingId.Contains(hotel.Id))
+                                        {
+                                            <span class="spinner" style="width:0.8rem; height:0.8rem;"></span>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-trash"></i> <span>Delete</span>
+                                        }
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (totalPages > 1)
+            {
+                <div class="ts-pagination" style="margin-top:2rem;">
+                    <button class="ts-page-btn" @onclick="PrevPage" disabled="@(currentPage == 1)">
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                    @for (int i = 1; i <= totalPages; i++)
+                    {
+                        var pg = i;
+                        <button class="ts-page-btn @(pg == currentPage ? "active" : "")" @onclick="() => GoToPage(pg)">@pg</button>
+                    }
+                    <button class="ts-page-btn" @onclick="NextPage" disabled="@(currentPage == totalPages)">
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private List<HotelDto> hotels = new();
+    private CreateHotelDto createDto = new();
+    
+    private bool loading = true;
+    private bool showAddForm = false;
+    private bool submitting = false;
+    private int currentPage = 1;
+    private int totalPages = 1;
+    
+    private string alertMessage = "";
+    private bool alertIsSuccess = false;
+    private List<Guid> deletingId = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadHotels();
+    }
+
+    private async Task LoadHotels()
+    {
+        loading = true;
+        StateHasChanged();
+        
+        var result = await HotelSvc.GetAllAsync(currentPage, 10);
+        hotels = result.Items;
+        totalPages = result.TotalPages;
+        
+        loading = false;
+        StateHasChanged();
+    }
+
+    private void ToggleAddForm()
+    {
+        showAddForm = !showAddForm;
+        if (showAddForm)
+        {
+            createDto = new CreateHotelDto();
+            alertMessage = "";
+        }
+    }
+
+    private async Task HandleAddHotel()
+    {
+        submitting = true;
+        alertMessage = "";
+        StateHasChanged();
+
+        if (string.IsNullOrWhiteSpace(createDto.ImageUrl))
+        {
+            createDto.ImageUrl = null;
+        }
+
+        var success = await HotelSvc.CreateAsync(createDto);
+        submitting = false;
+
+        if (success)
+        {
+            alertIsSuccess = true;
+            alertMessage = "Hotel added successfully!";
+            createDto = new CreateHotelDto();
+            
+            // Reload list and close form after a brief delay
+            await LoadHotels();
+            await Task.Delay(1000);
+            showAddForm = false;
+        }
+        else
+        {
+            alertIsSuccess = false;
+            alertMessage = "Failed to create hotel (demo list updated internally if applicable).";
+            
+            // In demo fallback services, mock addition usually works and adds to local list,
+            // but return is false for HTTP failure. Let's force reload list in case of demo fallback.
+            await LoadHotels();
+        }
+    }
+
+    private async Task ConfirmDelete(Guid hotelId)
+    {
+        deletingId.Add(hotelId);
+        StateHasChanged();
+
+        var success = await HotelSvc.DeleteAsync(hotelId);
+        
+        deletingId.Remove(hotelId);
+
+        if (success)
+        {
+            await LoadHotels();
+        }
+        else
+        {
+            // Demo fallback may return false for HTTP request, but it deletes from local list,
+            // so we should reload list to verify.
+            await LoadHotels();
+        }
+    }
+
+    private async Task PrevPage() { if (currentPage > 1) { currentPage--; await LoadHotels(); } }
+    private async Task NextPage() { if (currentPage < totalPages) { currentPage++; await LoadHotels(); } }
+    private async Task GoToPage(int page) { currentPage = page; await LoadHotels(); }
+}

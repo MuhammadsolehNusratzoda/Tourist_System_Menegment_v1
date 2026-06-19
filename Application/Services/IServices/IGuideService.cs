@@ -1,4 +1,4 @@
-public interface IGuidService
+public interface IGuideService
 {
     Task<ApiResponse<PagedResult<GuideDto>>> GetAllAsync(int page, int pageSize);
     Task<ApiResponse<GuideDto>> GetByIdAsync(Guid id);

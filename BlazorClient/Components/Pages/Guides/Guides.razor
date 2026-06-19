@@ -1,0 +1,171 @@
+@page "/guides"
+@inject GuideClientService GuideSvc
+@inject NavigationManager Nav
+
+<PageTitle>Professional Guides — TouristSystem</PageTitle>
+
+<div class="page-header">
+    <div class="ts-container">
+        <h1><i class="bi bi-person-badge" style="color:var(--color-accent-2);"></i> Tour Guides</h1>
+        <p>Find experienced local guides to enrich your adventure and cultural discovery in Tajikistan</p>
+    </div>
+</div>
+
+<div class="ts-container" style="padding-bottom:4rem;">
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+        <div style="display:flex; align-items:center; gap:0.5rem; flex:1; min-width:200px; max-width:320px;">
+            <i class="bi bi-search" style="color:var(--color-text-dim);"></i>
+            <input class="ts-input" @bind="searchQuery" @bind:event="oninput" placeholder="Search guides..." style="border:none; padding:0; background:none; box-shadow:none;" />
+        </div>
+        <input class="ts-input" @bind="languageFilter" placeholder="Filter by language..." style="max-width:200px;" />
+        <select class="ts-select" @bind="sortBy" style="max-width:180px;">
+            <option value="rating">Sort: Top Rated</option>
+            <option value="exp_desc">Sort: Experience (High)</option>
+            <option value="price_asc">Sort: Price (Low to High)</option>
+            <option value="price_desc">Sort: Price (High to Low)</option>
+        </select>
+        <button class="btn-ts btn-primary-ts btn-sm-ts" @onclick="LoadGuides">
+            <i class="bi bi-funnel"></i> Filter
+        </button>
+    </div>
+
+    @if (loading)
+    {
+        <div class="ts-spinner"><div class="spinner"></div></div>
+    }
+    else if (guides.Count == 0)
+    {
+        <div style="text-align:center; padding:4rem; color:var(--color-text-muted);">
+            <i class="bi bi-person-badge" style="font-size:3rem; display:block; margin-bottom:1rem;"></i>
+            <h3>No guides found</h3>
+            <p>Try adjusting your search criteria</p>
+        </div>
+    }
+    else
+    {
+        <div style="color:var(--color-text-muted); font-size:0.875rem; margin-bottom:1.5rem;">
+            Showing @guides.Count of @totalCount guides
+        </div>
+
+        <div class="ts-grid ts-grid-3">
+            @foreach (var guide in guides)
+            {
+                <div class="guide-card">
+                    <img class="guide-avatar" src="@(guide.ImageUrl ?? "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400")" alt="@guide.Name" loading="lazy" />
+                    <div class="guide-name">@guide.Name</div>
+                    
+                    <div class="guide-langs">
+                        @foreach (var lang in guide.LanguageList)
+                        {
+                            <span class="lang-tag">@lang</span>
+                        }
+                    </div>
+
+                    <div class="guide-stats">
+                        <div class="guide-stat-item">
+                            <span class="guide-stat-num">@guide.ExperienceYears</span>
+                            Yrs Exp
+                        </div>
+                        <div class="guide-stat-item">
+                            <span class="guide-stat-num">
+                                <i class="bi bi-star-fill" style="color:var(--color-accent-2); margin-right:2px;"></i>
+                                @guide.Rating.ToString("F1")
+                            </span>
+                            Rating
+                        </div>
+                        <div class="guide-stat-item">
+                            <span class="guide-stat-num">$@guide.PricePerDay</span>
+                            / Day
+                        </div>
+                    </div>
+
+                    <p class="ts-card-text" style="font-size:0.85rem; height:70px; overflow:hidden; margin-bottom:1.5rem; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical;">
+                        @guide.Bio
+                    </p>
+
+                    <button class="btn-ts btn-primary-ts btn-sm-ts" style="width:100%; justify-content:center;" @onclick="() => BookGuide(guide)">
+                        <i class="bi bi-calendar-event"></i> Book Guide
+                    </button>
+                </div>
+            }
+        </div>
+
+        @if (totalPages > 1)
+        {
+            <div class="ts-pagination">
+                <button class="ts-page-btn" @onclick="PrevPage" disabled="@(currentPage == 1)">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+                @for (int i = 1; i <= totalPages; i++)
+                {
+                    var pg = i;
+                    <button class="ts-page-btn @(pg == currentPage ? "active" : "")" @onclick="() => GoToPage(pg)">@pg</button>
+                }
+                <button class="ts-page-btn" @onclick="NextPage" disabled="@(currentPage == totalPages)">
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private List<GuideDto> guides = new();
+    private bool loading = true;
+    private int currentPage = 1;
+    private int totalPages = 1;
+    private int totalCount = 0;
+    private string searchQuery = "";
+    private string languageFilter = "";
+    private string sortBy = "rating";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadGuides();
+    }
+
+    private async Task LoadGuides()
+    {
+        loading = true;
+        StateHasChanged();
+
+        var result = await GuideSvc.GetAllAsync(currentPage, 6);
+
+        totalCount = result.TotalCount;
+        totalPages = result.TotalPages;
+        guides = result.Items;
+
+        if (!string.IsNullOrEmpty(searchQuery))
+        {
+            guides = guides.Where(g => 
+                g.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) || 
+                (g.Bio?.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ?? false)).ToList();
+        }
+
+        if (!string.IsNullOrEmpty(languageFilter))
+        {
+            guides = guides.Where(g => 
+                g.Languages.Contains(languageFilter, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        guides = sortBy switch
+        {
+            "exp_desc" => guides.OrderByDescending(g => g.ExperienceYears).ToList(),
+            "price_asc" => guides.OrderBy(g => g.PricePerDay).ToList(),
+            "price_desc" => guides.OrderByDescending(g => g.PricePerDay).ToList(),
+            _ => guides.OrderByDescending(g => g.Rating).ToList()
+        };
+
+        loading = false;
+    }
+
+    private void BookGuide(GuideDto guide)
+    {
+        Nav.NavigateTo($"/bookings/create?type=Guide&id={guide.Id}");
+    }
+
+    private async Task PrevPage() { if (currentPage > 1) { currentPage--; await LoadGuides(); } }
+    private async Task NextPage() { if (currentPage < totalPages) { currentPage++; await LoadGuides(); } }
+    private async Task GoToPage(int page) { currentPage = page; await LoadGuides(); }
+}

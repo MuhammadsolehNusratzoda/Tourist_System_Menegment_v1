@@ -1,0 +1,162 @@
+@page "/admin/users"
+@attribute [Authorize(Roles = "Admin")]
+
+<PageTitle>Manage Users — Admin — TouristSystem</PageTitle>
+
+<div class="page-header">
+    <div class="ts-container">
+        <h1><i class="bi bi-people" style="color:var(--color-accent-2);"></i> User Directory</h1>
+        <p>Assign access control permissions, manage organizational roles, and audit login access</p>
+    </div>
+</div>
+
+<div class="ts-container" style="padding-bottom:5rem; margin-top:2rem;">
+    <!-- Search / Filter Bar -->
+    <div class="filter-bar">
+        <div style="display:flex; align-items:center; gap:0.5rem; flex:1; min-width:200px; max-width:320px;">
+            <i class="bi bi-search" style="color:var(--color-text-dim);"></i>
+            <input class="ts-input" @bind="searchQuery" @bind:event="oninput" @onkeyup="FilterUsers" placeholder="Search by name or email..." style="border:none; padding:0; background:none; box-shadow:none;" />
+        </div>
+        <select class="ts-select" @bind="roleFilter" @bind:after="FilterUsers" style="max-width:180px;">
+            <option value="">All Roles</option>
+            <option value="Tourist">Tourist</option>
+            <option value="Guide">Guide</option>
+            <option value="Admin">Admin</option>
+        </select>
+        <button class="btn-ts btn-primary-ts btn-sm-ts" @onclick="FilterUsers">
+            <i class="bi bi-search"></i> Search
+        </button>
+    </div>
+
+    <!-- Users Table -->
+    <div class="ts-card" style="padding:1.5rem;">
+        <h3 style="color:#fff; font-family:var(--font-display); margin-bottom:1.5rem; border-bottom:1px solid var(--color-border); padding-bottom:0.75rem;">
+            <i class="bi bi-person-lines-fill"></i> System Accounts
+        </h3>
+
+        <div class="ts-table-wrap">
+            <table class="ts-table">
+                <thead>
+                    <tr>
+                        <th style="width:25%;">Full Name</th>
+                        <th style="width:25%;">Email</th>
+                        <th style="width:18%;">Joined Date</th>
+                        <th style="width:12%;">System Role</th>
+                        <th style="width:10%;">Status</th>
+                        <th style="text-align:right; width:10%;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in filteredUsers)
+                    {
+                        <tr>
+                            <td>
+                                <div style="font-weight:600; color:#fff; display:flex; align-items:center; gap:0.5rem;">
+                                    <div style="width:32px; height:32px; border-radius:50%; background:var(--color-accent-glow); color:var(--color-accent-2); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85rem;">
+                                        @GetInitials(user.FullName)
+                                    </div>
+                                    @user.FullName
+                                </div>
+                            </td>
+                            <td>
+                                <span style="font-size:0.85rem; color:var(--color-text-muted);">@user.Email</span>
+                            </td>
+                            <td>
+                                <span style="font-size:0.85rem;">@user.JoinedDate.ToString("yyyy-MM-dd")</span>
+                            </td>
+                            <td>
+                                <select class="ts-select" style="padding:0.25rem 0.5rem; font-size:0.8rem; background:var(--color-surface-2);" @onchange="(e) => ChangeRole(user, e)">
+                                    <option value="Tourist" selected="@(user.Role == "Tourist")">Tourist</option>
+                                    <option value="Guide" selected="@(user.Role == "Guide")">Guide</option>
+                                    <option value="Admin" selected="@(user.Role == "Admin")">Admin</option>
+                                </select>
+                            </td>
+                            <td>
+                                <span class="badge @(user.Status == "Active" ? "badge-success" : "badge-danger")" style="font-size:0.75rem; padding:0.2rem 0.5rem;">
+                                    @user.Status
+                                </span>
+                            </td>
+                            <td style="text-align:right;">
+                                <button class="btn-ts @(user.Status == "Active" ? "btn-danger-ts" : "btn-primary-ts") btn-sm-ts" style="padding:0.3rem 0.6rem; font-size:0.75rem;" @onclick="() => ToggleUserStatus(user)">
+                                    @(user.Status == "Active" ? "Suspend" : "Activate")
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string searchQuery = "";
+    private string roleFilter = "";
+
+    public class SystemUser
+    {
+        public Guid Id { get; set; }
+        public string FullName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Role { get; set; } = "Tourist";
+        public string Status { get; set; } = "Active";
+        public DateTime JoinedDate { get; set; }
+    }
+
+    private static readonly List<SystemUser> _users = new()
+    {
+        new SystemUser { Id = Guid.NewGuid(), FullName = "Muhammadsoleh Nusratzoda", Email = "muhammadsoleh@example.com", Role = "Admin", Status = "Active", JoinedDate = new DateTime(2025, 12, 1) },
+        new SystemUser { Id = Guid.NewGuid(), FullName = "Ahmad Rahimov", Email = "ahmad@example.com", Role = "Guide", Status = "Active", JoinedDate = new DateTime(2026, 1, 15) },
+        new SystemUser { Id = Guid.NewGuid(), FullName = "Zulfiya Nazarova", Email = "zulfiya@example.com", Role = "Guide", Status = "Active", JoinedDate = new DateTime(2026, 2, 10) },
+        new SystemUser { Id = Guid.NewGuid(), FullName = "Bob Smith", Email = "bob@example.com", Role = "Tourist", Status = "Active", JoinedDate = new DateTime(2026, 3, 5) },
+        new SystemUser { Id = Guid.NewGuid(), FullName = "Alice Johnson", Email = "alice@example.com", Role = "Tourist", Status = "Suspended", JoinedDate = new DateTime(2026, 4, 18) }
+    };
+
+    private List<SystemUser> filteredUsers = new();
+
+    protected override void OnInitialized()
+    {
+        FilterUsers();
+    }
+
+    private void FilterUsers()
+    {
+        filteredUsers = _users.ToList();
+
+        if (!string.IsNullOrEmpty(searchQuery))
+        {
+            filteredUsers = filteredUsers.Where(u => 
+                u.FullName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) || 
+                u.Email.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        if (!string.IsNullOrEmpty(roleFilter))
+        {
+            filteredUsers = filteredUsers.Where(u => u.Role == roleFilter).ToList();
+        }
+    }
+
+    private void ChangeRole(SystemUser user, ChangeEventArgs e)
+    {
+        var newRole = e.Value?.ToString();
+        if (!string.IsNullOrEmpty(newRole))
+        {
+            user.Role = newRole;
+            FilterUsers();
+        }
+    }
+
+    private void ToggleUserStatus(SystemUser user)
+    {
+        user.Status = user.Status == "Active" ? "Suspended" : "Active";
+        FilterUsers();
+    }
+
+    private string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "U";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 1) return parts[0][0].ToString().ToUpper();
+        return (parts[0][0].ToString() + parts[parts.Length - 1][0].ToString()).ToUpper();
+    }
+}

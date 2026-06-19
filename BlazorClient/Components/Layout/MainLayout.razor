@@ -1,19 +1,151 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
+@inject ClientAuthService AuthSvc
+@inject NavigationManager Nav
 
 <div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+    <!-- Top Navbar -->
+    <nav class="ts-navbar">
+        <a class="ts-brand" href="/">
+            <i class="bi bi-globe-asia-australia"></i>
+            TouristSystem
+        </a>
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+        <!-- Desktop Nav Links -->
+        <div class="ts-nav-links">
+            <NavLink class="ts-nav-link" href="/" Match="NavLinkMatch.All">
+                <i class="bi bi-house"></i> Home
+            </NavLink>
+            <NavLink class="ts-nav-link" href="/places">
+                <i class="bi bi-map"></i> Places
+            </NavLink>
+            <NavLink class="ts-nav-link" href="/hotels">
+                <i class="bi bi-building"></i> Hotels
+            </NavLink>
+            <NavLink class="ts-nav-link" href="/restaurants">
+                <i class="bi bi-cup-hot"></i> Restaurants
+            </NavLink>
+            <NavLink class="ts-nav-link" href="/transport">
+                <i class="bi bi-truck"></i> Transport
+            </NavLink>
+            <NavLink class="ts-nav-link" href="/guides">
+                <i class="bi bi-person-badge"></i> Guides
+            </NavLink>
         </div>
 
-        <article class="content px-4">
+        <!-- Actions -->
+        <div class="ts-nav-actions">
+            <AuthorizeView>
+                <Authorized>
+                    <NavLink class="ts-nav-link" href="/bookings/my">
+                        <i class="bi bi-calendar-check"></i> My Bookings
+                    </NavLink>
+                    <AuthorizeView Roles="Admin" Context="adminContext">
+                        <NavLink class="ts-nav-link" href="/admin" style="color: var(--color-gold);">
+                            <i class="bi bi-shield-check"></i> Admin
+                        </NavLink>
+                    </AuthorizeView>
+                    <div class="dropdown" @ref="dropdownRef">
+                        <button class="btn-ts btn-secondary-ts" @onclick="ToggleDropdown">
+                            <i class="bi bi-person-circle"></i>
+                            @(currentUser?.FullName?.Split(' ')[0] ?? "Account")
+                            <i class="bi bi-chevron-down" style="font-size:0.7rem;"></i>
+                        </button>
+                        @if (dropdownOpen)
+                        {
+                            <div class="ts-dropdown-menu" style="position:absolute; right:0; top:calc(100% + 8px); background:var(--color-bg-2); border:1px solid var(--color-border); border-radius:var(--radius-md); padding:0.5rem; min-width:180px; z-index:999; box-shadow:var(--shadow-card);">
+                                <div style="padding:0.75rem 1rem; border-bottom:1px solid var(--color-border); margin-bottom:0.5rem;">
+                                    <div style="font-weight:600; color:#fff; font-size:0.875rem;">@currentUser?.FullName</div>
+                                    <div style="font-size:0.75rem; color:var(--color-text-muted);">@currentUser?.Role</div>
+                                </div>
+                                <button class="btn-ts btn-danger-ts btn-sm-ts" style="width:100%; justify-content:center;" @onclick="Logout">
+                                    <i class="bi bi-box-arrow-right"></i> Sign Out
+                                </button>
+                            </div>
+                        }
+                    </div>
+                </Authorized>
+                <NotAuthorized>
+                    <NavLink class="btn-ts btn-secondary-ts" href="/login">
+                        <i class="bi bi-box-arrow-in-right"></i> Sign In
+                    </NavLink>
+                    <NavLink class="btn-ts btn-primary-ts" href="/register">
+                        <i class="bi bi-person-plus"></i> Register
+                    </NavLink>
+                </NotAuthorized>
+            </AuthorizeView>
+
+            <!-- Hamburger -->
+            <button class="ts-hamburger" @onclick="ToggleMobile">
+                <i class="bi @(mobileOpen ? "bi-x-lg" : "bi-list")" style="font-size:1.25rem;"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Mobile Menu -->
+    <div class="ts-mobile-menu @(mobileOpen ? "open" : "")">
+        <NavLink class="ts-nav-link" href="/" Match="NavLinkMatch.All" @onclick="CloseMobile"><i class="bi bi-house"></i> Home</NavLink>
+        <NavLink class="ts-nav-link" href="/places" @onclick="CloseMobile"><i class="bi bi-map"></i> Places</NavLink>
+        <NavLink class="ts-nav-link" href="/hotels" @onclick="CloseMobile"><i class="bi bi-building"></i> Hotels</NavLink>
+        <NavLink class="ts-nav-link" href="/restaurants" @onclick="CloseMobile"><i class="bi bi-cup-hot"></i> Restaurants</NavLink>
+        <NavLink class="ts-nav-link" href="/transport" @onclick="CloseMobile"><i class="bi bi-truck"></i> Transport</NavLink>
+        <NavLink class="ts-nav-link" href="/guides" @onclick="CloseMobile"><i class="bi bi-person-badge"></i> Guides</NavLink>
+        <AuthorizeView>
+            <Authorized>
+                <NavLink class="ts-nav-link" href="/bookings/my" @onclick="CloseMobile"><i class="bi bi-calendar-check"></i> My Bookings</NavLink>
+                <button class="btn-ts btn-danger-ts btn-sm-ts" @onclick="Logout" style="margin-top:0.5rem;">
+                    <i class="bi bi-box-arrow-right"></i> Sign Out
+                </button>
+            </Authorized>
+            <NotAuthorized>
+                <NavLink class="ts-nav-link" href="/login" @onclick="CloseMobile"><i class="bi bi-box-arrow-in-right"></i> Sign In</NavLink>
+                <NavLink class="ts-nav-link" href="/register" @onclick="CloseMobile"><i class="bi bi-person-plus"></i> Register</NavLink>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+
+    <!-- Main Content -->
+    <main class="ts-main">
+        <article>
             @Body
         </article>
     </main>
+
+    <!-- Footer -->
+    <footer class="ts-footer">
+        <div class="ts-footer-grid">
+            <div>
+                <div class="ts-footer-brand">🌍 TouristSystem</div>
+                <p class="ts-footer-desc">Your ultimate guide to exploring the beauty of Tajikistan. Book hotels, find guides, and discover breathtaking places.</p>
+            </div>
+            <div>
+                <div class="ts-footer-heading">Explore</div>
+                <ul class="ts-footer-links">
+                    <li><a href="/places">Tourist Places</a></li>
+                    <li><a href="/hotels">Hotels</a></li>
+                    <li><a href="/restaurants">Restaurants</a></li>
+                    <li><a href="/transport">Transport</a></li>
+                </ul>
+            </div>
+            <div>
+                <div class="ts-footer-heading">Services</div>
+                <ul class="ts-footer-links">
+                    <li><a href="/guides">Find a Guide</a></li>
+                    <li><a href="/bookings/create">Book Now</a></li>
+                    <li><a href="/bookings/my">My Bookings</a></li>
+                </ul>
+            </div>
+            <div>
+                <div class="ts-footer-heading">Account</div>
+                <ul class="ts-footer-links">
+                    <li><a href="/login">Sign In</a></li>
+                    <li><a href="/register">Register</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="ts-footer-bottom">
+            <p>© 2026 TouristSystem by Muhammadsoleh Nusratzoda · Built with ❤️ in Tajikistan</p>
+        </div>
+    </footer>
 </div>
 
 <div id="blazor-error-ui" data-nosnippet>
@@ -21,3 +153,27 @@
     <a href="." class="reload">Reload</a>
     <span class="dismiss">🗙</span>
 </div>
+
+@code {
+    private bool mobileOpen = false;
+    private bool dropdownOpen = false;
+    private ElementReference dropdownRef;
+    private AuthResponse? currentUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentUser = await AuthSvc.GetCurrentUserAsync();
+    }
+
+    private void ToggleMobile() => mobileOpen = !mobileOpen;
+    private void CloseMobile() => mobileOpen = false;
+    private void ToggleDropdown() => dropdownOpen = !dropdownOpen;
+
+    private async Task Logout()
+    {
+        await AuthSvc.LogoutAsync();
+        dropdownOpen = false;
+        mobileOpen = false;
+        Nav.NavigateTo("/", forceLoad: true);
+    }
+}

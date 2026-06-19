@@ -1,7 +1,265 @@
-﻿@page "/"
+@page "/"
+@inject PlaceClientService PlaceSvc
+@inject HotelClientService HotelSvc
 
-<PageTitle>Home</PageTitle>
+<PageTitle>TouristSystem — Explore the Beauty of Tajikistan</PageTitle>
 
-<h1>Hello, world!</h1>
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="hero-bg"></div>
+    <div class="hero-orb hero-orb-1"></div>
+    <div class="hero-orb hero-orb-2"></div>
 
-Welcome to your new app.
+    <div class="hero-content">
+        <div class="hero-badge">
+            <i class="bi bi-geo-alt-fill"></i>
+            Discover Tajikistan
+        </div>
+
+        <h1 class="hero-title">
+            Explore the<br />
+            <span class="accent">Roof of the World</span>
+        </h1>
+
+        <p class="hero-subtitle">
+            Book hotels, hire expert guides, discover breathtaking places, find restaurants and transport — all in one place.
+        </p>
+
+        <div class="hero-search">
+            <i class="bi bi-search" style="color:var(--color-text-dim); margin-right:0.5rem;"></i>
+            <input @bind="searchQuery" @onkeydown="HandleSearch" placeholder="Search places, hotels, guides..." />
+            <button class="btn-ts btn-primary-ts" @onclick="DoSearch">
+                Search
+            </button>
+        </div>
+
+        <div class="hero-stats">
+            <div class="hero-stat-item">
+                <div class="hero-stat-number">500+</div>
+                <div class="hero-stat-label">Tourist Places</div>
+            </div>
+            <div class="hero-stat-item">
+                <div class="hero-stat-number">200+</div>
+                <div class="hero-stat-label">Hotels</div>
+            </div>
+            <div class="hero-stat-item">
+                <div class="hero-stat-number">50+</div>
+                <div class="hero-stat-label">Expert Guides</div>
+            </div>
+            <div class="hero-stat-item">
+                <div class="hero-stat-number">10K+</div>
+                <div class="hero-stat-label">Happy Travelers</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Feature Categories -->
+<section class="ts-section" style="padding-top:3rem;">
+    <div class="ts-container">
+        <div class="ts-section-header">
+            <span class="ts-section-tag">What We Offer</span>
+            <h2 class="ts-section-title">Everything You Need for Your Journey</h2>
+            <p class="ts-section-subtitle">Browse our comprehensive travel services designed to make your Tajikistan trip unforgettable.</p>
+        </div>
+
+        <div class="feature-grid">
+            <a href="/places" class="feature-card">
+                <div class="feature-icon" style="background:linear-gradient(135deg,rgba(13,148,136,0.3),rgba(20,184,166,0.1));">
+                    🗺️
+                </div>
+                <div class="feature-card-title">Tourist Places</div>
+                <div class="feature-card-desc">Ancient fortresses, lakes & mountain trails</div>
+            </a>
+            <a href="/hotels" class="feature-card">
+                <div class="feature-icon" style="background:linear-gradient(135deg,rgba(99,102,241,0.3),rgba(139,92,246,0.1));">
+                    🏨
+                </div>
+                <div class="feature-card-title">Hotels</div>
+                <div class="feature-card-desc">Luxury stays to cozy mountain lodges</div>
+            </a>
+            <a href="/restaurants" class="feature-card">
+                <div class="feature-icon" style="background:linear-gradient(135deg,rgba(245,158,11,0.3),rgba(251,191,36,0.1));">
+                    🍽️
+                </div>
+                <div class="feature-card-title">Restaurants</div>
+                <div class="feature-card-desc">Traditional Tajik & international cuisine</div>
+            </a>
+            <a href="/transport" class="feature-card">
+                <div class="feature-icon" style="background:linear-gradient(135deg,rgba(239,68,68,0.3),rgba(248,113,113,0.1));">
+                    🚌
+                </div>
+                <div class="feature-card-title">Transport</div>
+                <div class="feature-card-desc">Buses, taxis, trains across Tajikistan</div>
+            </a>
+            <a href="/guides" class="feature-card">
+                <div class="feature-icon" style="background:linear-gradient(135deg,rgba(34,197,94,0.3),rgba(74,222,128,0.1));">
+                    👨‍🏫
+                </div>
+                <div class="feature-card-title">Expert Guides</div>
+                <div class="feature-card-desc">Certified local guides for every adventure</div>
+            </a>
+            <a href="/bookings/create" class="feature-card">
+                <div class="feature-icon" style="background:linear-gradient(135deg,rgba(168,85,247,0.3),rgba(196,181,253,0.1));">
+                    📅
+                </div>
+                <div class="feature-card-title">Book Now</div>
+                <div class="feature-card-desc">Easy booking for any service in seconds</div>
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- Top Places -->
+<section class="ts-section" style="background:var(--color-bg-2); border-top:1px solid var(--color-border); border-bottom:1px solid var(--color-border);">
+    <div class="ts-container">
+        <div class="ts-section-header">
+            <span class="ts-section-tag">Featured</span>
+            <h2 class="ts-section-title">Top Tourist Places</h2>
+            <p class="ts-section-subtitle">Explore Tajikistan's most beloved destinations</p>
+        </div>
+
+        @if (loadingPlaces)
+        {
+            <div class="ts-spinner"><div class="spinner"></div></div>
+        }
+        else
+        {
+            <div class="ts-grid ts-grid-3">
+                @foreach (var place in topPlaces)
+                {
+                    <div class="ts-card">
+                        <div class="ts-card-img-wrap">
+                            <img class="ts-card-img" src="@(place.ImageUrl ?? "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800")" alt="@place.Name" loading="lazy" />
+                            @if (place.EntryFee == 0)
+                            {
+                                <span class="ts-card-badge">Free Entry</span>
+                            }
+                            else
+                            {
+                                <span class="ts-card-badge">$@place.EntryFee entry</span>
+                            }
+                            <span class="ts-card-rating"><i class="bi bi-star-fill"></i> @place.Rating.ToString("F1")</span>
+                        </div>
+                        <div class="ts-card-body">
+                            <div class="ts-card-title">@place.Name</div>
+                            <p class="ts-card-text">@place.Description</p>
+                            <div class="ts-card-meta">
+                                <span class="ts-card-location"><i class="bi bi-geo-alt"></i> @place.Location</span>
+                                <a href="/places/@place.Id" class="btn-ts btn-primary-ts btn-sm-ts">
+                                    Explore <i class="bi bi-arrow-right"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+            <div style="text-align:center; margin-top:2.5rem;">
+                <a href="/places" class="btn-ts btn-secondary-ts btn-lg-ts">
+                    <i class="bi bi-grid"></i> View All Places
+                </a>
+            </div>
+        }
+    </div>
+</section>
+
+<!-- Top Hotels -->
+<section class="ts-section">
+    <div class="ts-container">
+        <div class="ts-section-header">
+            <span class="ts-section-tag">Accommodations</span>
+            <h2 class="ts-section-title">Featured Hotels</h2>
+            <p class="ts-section-subtitle">From luxury resorts to cozy mountain lodges</p>
+        </div>
+
+        @if (loadingHotels)
+        {
+            <div class="ts-spinner"><div class="spinner"></div></div>
+        }
+        else
+        {
+            <div class="ts-grid ts-grid-3">
+                @foreach (var hotel in topHotels)
+                {
+                    <div class="ts-card">
+                        <div class="ts-card-img-wrap">
+                            <img class="ts-card-img" src="@(hotel.ImageUrl ?? "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800")" alt="@hotel.Name" loading="lazy" />
+                            <span class="ts-card-badge" style="color:var(--color-gold);">@hotel.StarsDisplay</span>
+                            <span class="ts-card-rating"><i class="bi bi-star-fill"></i> @hotel.Rating.ToString("F1")</span>
+                        </div>
+                        <div class="ts-card-body">
+                            <div class="ts-card-title">@hotel.Name</div>
+                            <p class="ts-card-text">@hotel.Description</p>
+                            <div class="ts-card-meta">
+                                <div class="ts-card-price">$@hotel.PricePerNight <span>/ night</span></div>
+                                <a href="/hotels/@hotel.Id" class="btn-ts btn-primary-ts btn-sm-ts">
+                                    Book <i class="bi bi-arrow-right"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+            <div style="text-align:center; margin-top:2.5rem;">
+                <a href="/hotels" class="btn-ts btn-secondary-ts btn-lg-ts">
+                    <i class="bi bi-building"></i> View All Hotels
+                </a>
+            </div>
+        }
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="ts-section" style="background:linear-gradient(135deg, rgba(13,148,136,0.15) 0%, rgba(99,102,241,0.1) 100%); border-top:1px solid var(--color-border);">
+    <div class="ts-container" style="text-align:center;">
+        <h2 style="font-size:clamp(1.75rem, 4vw, 2.5rem); color:#fff; margin-bottom:1rem;">Ready to Explore Tajikistan?</h2>
+        <p style="color:var(--color-text-muted); margin-bottom:2.5rem; max-width:500px; margin-left:auto; margin-right:auto; line-height:1.7;">
+            Create a free account and start booking your perfect Tajikistan adventure today.
+        </p>
+        <div style="display:flex; gap:1rem; justify-content:center; flex-wrap:wrap;">
+            <a href="/register" class="btn-ts btn-primary-ts btn-lg-ts">
+                <i class="bi bi-person-plus"></i> Get Started Free
+            </a>
+            <a href="/places" class="btn-ts btn-secondary-ts btn-lg-ts">
+                <i class="bi bi-map"></i> Explore Places
+            </a>
+        </div>
+    </div>
+</section>
+
+@code {
+    private string searchQuery = "";
+    private List<PlaceDto> topPlaces = new();
+    private List<HotelDto> topHotels = new();
+    private bool loadingPlaces = true;
+    private bool loadingHotels = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var placesTask = PlaceSvc.GetAllAsync(page: 1, pageSize: 3);
+        var hotelsTask = HotelSvc.GetAllAsync(page: 1, pageSize: 3);
+
+        await Task.WhenAll(placesTask, hotelsTask);
+
+        var placesResult = await placesTask;
+        topPlaces = placesResult.Items;
+        loadingPlaces = false;
+
+        var hotelsResult = await hotelsTask;
+        topHotels = hotelsResult.Items;
+        loadingHotels = false;
+    }
+
+    private void HandleSearch(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") DoSearch();
+    }
+
+    private void DoSearch()
+    {
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+            Nav.NavigateTo($"/places?q={Uri.EscapeDataString(searchQuery)}");
+    }
+}
+
+@inject NavigationManager Nav

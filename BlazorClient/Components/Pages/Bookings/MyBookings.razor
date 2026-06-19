@@ -1,0 +1,255 @@
+@page "/bookings/my"
+@attribute [Authorize]
+@inject BookingClientService BookingSvc
+@inject HotelClientService HotelSvc
+@inject GuideClientService GuideSvc
+@inject RestaurantClientService RestaurantSvc
+@inject TransportClientService TransportSvc
+@inject ClientAuthService AuthSvc
+
+<PageTitle>My Bookings — TouristSystem</PageTitle>
+
+<div class="page-header">
+    <div class="ts-container">
+        <h1><i class="bi bi-calendar-check" style="color:var(--color-accent-2);"></i> My Reservations</h1>
+        <p>Manage your active reservations, check statuses, and review travel schedules</p>
+    </div>
+</div>
+
+<div class="ts-container" style="padding-bottom:5rem;">
+    @if (loading)
+    {
+        <div class="ts-spinner"><div class="spinner"></div></div>
+    }
+    else if (bookings.Count == 0)
+    {
+        <div class="ts-card" style="text-align:center; padding:4rem; max-width:600px; margin: 3rem auto;">
+            <i class="bi bi-calendar-x" style="font-size:3rem; color:var(--color-text-dim); display:block; margin-bottom:1rem;"></i>
+            <h3>No reservations found</h3>
+            <p style="color:var(--color-text-muted); margin-bottom:2rem;">You haven't made any travel bookings yet. Let's find your first destination!</p>
+            <a class="btn-ts btn-primary-ts" href="/places" style="display:inline-flex; align-items:center;">
+                Explore Places <i class="bi bi-arrow-right" style="margin-left:6px;"></i>
+            </a>
+        </div>
+    }
+    else
+    {
+        @if (!string.IsNullOrEmpty(alertMessage))
+        {
+            <div class="ts-alert @(alertIsSuccess ? "ts-alert-success" : "ts-alert-error")" style="margin-top:1.5rem;">
+                <i class="bi @(alertIsSuccess ? "bi-check-circle" : "bi-exclamation-triangle")"></i>
+                @alertMessage
+            </div>
+        }
+
+        <div style="color:var(--color-text-muted); font-size:0.875rem; margin-top:1.5rem; margin-bottom:1.5rem;">
+            Showing @bookings.Count of @totalCount reservations
+        </div>
+
+        <div class="ts-table-wrap">
+            <table class="ts-table">
+                <thead>
+                    <tr>
+                        <th style="width: 15%;">Service Type</th>
+                        <th style="width: 30%;">Reserved Item / Route</th>
+                        <th style="width: 25%;">Dates</th>
+                        <th style="width: 12%;">Total Price</th>
+                        <th style="width: 10%;">Status</th>
+                        <th style="text-align: right; width: 8%;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var booking in bookings)
+                    {
+                        <tr>
+                            <td>
+                                <span style="display:flex; align-items:center; gap:0.5rem; font-weight:600;">
+                                    <i class="bi @GetTypeIcon(booking.BookingType)" style="color:var(--color-accent-2); font-size:1.1rem;"></i>
+                                    @booking.BookingType
+                                </span>
+                            </td>
+                            <td>
+                                <div style="font-weight:600; color:#fff;">
+                                    @GetReferenceName(booking)
+                                </div>
+                                @if (!string.IsNullOrEmpty(booking.Notes))
+                                {
+                                    <div style="font-size:0.75rem; color:var(--color-text-muted); margin-top:4px; max-width:280px; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;" title="@booking.Notes">
+                                        <i class="bi bi-sticky" style="margin-right:2px;"></i> Note: @booking.Notes
+                                    </div>
+                                }
+                            </td>
+                            <td>
+                                <div style="font-size:0.85rem;">
+                                    @if (booking.BookingType == "Hotel" || booking.BookingType == "Guide")
+                                    {
+                                        <span>@booking.StartDate.ToString("MMM dd, yyyy") — @booking.EndDate.ToString("MMM dd, yyyy")</span>
+                                        <span style="display:block; font-size:0.75rem; color:var(--color-text-dim); margin-top:2px;">
+                                            (@booking.Days Days)
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span>@booking.StartDate.ToString("MMM dd, yyyy · HH:mm")</span>
+                                    }
+                                </div>
+                            </td>
+                            <td>
+                                <span style="font-weight:700; color:var(--color-accent-2); font-size:1rem;">
+                                    @(booking.TotalPrice > 0 ? $"${booking.TotalPrice:N2}" : "Free")
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge @booking.StatusBadgeClass">@booking.Status</span>
+                            </td>
+                            <td style="text-align: right;">
+                                @if (booking.Status == "Confirmed" || booking.Status == "Pending")
+                                {
+                                    <button class="btn-ts btn-danger-ts btn-sm-ts" style="padding: 0.3rem 0.75rem;" @onclick="() => CancelBooking(booking.Id)" disabled="@cancellingId.Contains(booking.Id)">
+                                        @if (cancellingId.Contains(booking.Id))
+                                        {
+                                            <span class="spinner" style="width:0.8rem; height:0.8rem;"></span>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-x-circle"></i> <span>Cancel</span>
+                                        }
+                                    </button>
+                                }
+                                else
+                                {
+                                    <span style="color:var(--color-text-dim); font-size:0.8rem;">No actions</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (totalPages > 1)
+        {
+            <div class="ts-pagination" style="margin-top:2rem;">
+                <button class="ts-page-btn" @onclick="PrevPage" disabled="@(currentPage == 1)">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+                @for (int i = 1; i <= totalPages; i++)
+                {
+                    var pg = i;
+                    <button class="ts-page-btn @(pg == currentPage ? "active" : "")" @onclick="() => GoToPage(pg)">@pg</button>
+                }
+                <button class="ts-page-btn" @onclick="NextPage" disabled="@(currentPage == totalPages)">
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private List<BookingDto> bookings = new();
+    private Dictionary<Guid, string> nameCache = new();
+    
+    private bool loading = true;
+    private int currentPage = 1;
+    private int totalPages = 1;
+    private int totalCount = 0;
+
+    private List<Guid> cancellingId = new();
+    private string alertMessage = "";
+    private bool alertIsSuccess = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBookings();
+    }
+
+    private async Task LoadBookings()
+    {
+        loading = true;
+        StateHasChanged();
+
+        // 1. Fetch bookings
+        var result = await BookingSvc.GetMyBookingsAsync(currentPage, 10);
+        bookings = result.Items;
+        totalCount = result.TotalCount;
+        totalPages = result.TotalPages;
+
+        // 2. Fetch dictionary entities to resolve names
+        await ResolveNames();
+
+        loading = false;
+        StateHasChanged();
+    }
+
+    private async Task ResolveNames()
+    {
+        try
+        {
+            // Fetch Hotels
+            var hotelResult = await HotelSvc.GetAllAsync(1, 100);
+            foreach (var h in hotelResult.Items) nameCache[h.Id] = h.Name;
+
+            // Fetch Guides
+            var guideResult = await GuideSvc.GetAllAsync(1, 100);
+            foreach (var g in guideResult.Items) nameCache[g.Id] = g.Name;
+
+            // Fetch Transport
+            var transResult = await TransportSvc.GetAllAsync();
+            foreach (var t in transResult.Items) nameCache[t.Id] = t.Name;
+
+            // Fetch Restaurants
+            var restResult = await RestaurantSvc.GetAllAsync(1, 100);
+            foreach (var r in restResult.Items) nameCache[r.Id] = r.Name;
+        }
+        catch (Exception)
+        {
+            // Fail silently, fallbacks are handled
+        }
+    }
+
+    private string GetReferenceName(BookingDto booking)
+    {
+        if (nameCache.TryGetValue(booking.ReferenceId, out var name))
+            return name;
+            
+        return $"{booking.BookingType} Reservation";
+    }
+
+    private string GetTypeIcon(string type) => type switch
+    {
+        "Hotel" => "bi-building",
+        "Guide" => "bi-person-badge",
+        "Transport" => "bi-truck",
+        "Restaurant" => "bi-cup-hot",
+        _ => "bi-bookmark"
+    };
+
+    private async Task CancelBooking(Guid bookingId)
+    {
+        cancellingId.Add(bookingId);
+        alertMessage = "";
+        StateHasChanged();
+
+        var (success, msg) = await BookingSvc.CancelAsync(bookingId);
+        
+        cancellingId.Remove(bookingId);
+        
+        alertIsSuccess = success;
+        alertMessage = msg;
+
+        if (success)
+        {
+            // Reload list
+            await LoadBookings();
+        }
+        else
+        {
+            StateHasChanged();
+        }
+    }
+
+    private async Task PrevPage() { if (currentPage > 1) { currentPage--; await LoadBookings(); } }
+    private async Task NextPage() { if (currentPage < totalPages) { currentPage++; await LoadBookings(); } }
+    private async Task GoToPage(int page) { currentPage = page; await LoadBookings(); }
+}

@@ -1,0 +1,145 @@
+@page "/hotels"
+@inject HotelClientService HotelSvc
+
+<PageTitle>Hotels — TouristSystem</PageTitle>
+
+<div class="page-header">
+    <div class="ts-container">
+        <h1><i class="bi bi-building" style="color:var(--color-accent-2);"></i> Hotels in Tajikistan</h1>
+        <p>Find the perfect accommodation — from luxury city hotels to cozy mountain lodges</p>
+    </div>
+</div>
+
+<div class="ts-container" style="padding-bottom:4rem;">
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+        <div style="display:flex; align-items:center; gap:0.5rem; flex:1; min-width:200px; max-width:300px;">
+            <i class="bi bi-search" style="color:var(--color-text-dim);"></i>
+            <input class="ts-input" @bind="searchQuery" @bind:event="oninput" @onkeyup="ApplyFilter" placeholder="Search hotels..." style="border:none; padding:0; background:none; box-shadow:none;" />
+        </div>
+        <select class="ts-select" @bind="filterStars" style="max-width:160px;">
+            <option value="0">All Stars</option>
+            <option value="5">⭐⭐⭐⭐⭐ 5 Star</option>
+            <option value="4">⭐⭐⭐⭐ 4 Star</option>
+            <option value="3">⭐⭐⭐ 3 Star</option>
+            <option value="2">⭐⭐ 2 Star</option>
+        </select>
+        <select class="ts-select" @bind="sortBy" style="max-width:180px;">
+            <option value="rating">Sort: Top Rated</option>
+            <option value="price_asc">Sort: Price (Low→High)</option>
+            <option value="price_desc">Sort: Price (High→Low)</option>
+        </select>
+        <button class="btn-ts btn-primary-ts btn-sm-ts" @onclick="LoadHotels">
+            <i class="bi bi-funnel"></i> Filter
+        </button>
+    </div>
+
+    @if (loading)
+    {
+        <div class="ts-spinner"><div class="spinner"></div></div>
+    }
+    else if (hotels.Count == 0)
+    {
+        <div style="text-align:center; padding:4rem; color:var(--color-text-muted);">
+            <i class="bi bi-building-x" style="font-size:3rem; display:block; margin-bottom:1rem;"></i>
+            <h3>No hotels found</h3>
+            <p>Try adjusting your filters</p>
+        </div>
+    }
+    else
+    {
+        <div style="color:var(--color-text-muted); font-size:0.875rem; margin-bottom:1.5rem;">
+            Showing @hotels.Count of @totalCount hotels
+        </div>
+
+        <div class="ts-grid ts-grid-3">
+            @foreach (var hotel in hotels)
+            {
+                <div class="ts-card">
+                    <div class="ts-card-img-wrap">
+                        <img class="ts-card-img" src="@(hotel.ImageUrl ?? "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800")" alt="@hotel.Name" loading="lazy" />
+                        <span class="ts-card-badge" style="color:var(--color-gold);">@hotel.StarsDisplay</span>
+                        <span class="ts-card-rating"><i class="bi bi-star-fill"></i> @hotel.Rating.ToString("F1")</span>
+                    </div>
+                    <div class="ts-card-body">
+                        <div class="ts-card-title">@hotel.Name</div>
+                        <p class="ts-card-text">@hotel.Description</p>
+                        <div class="ts-card-location" style="margin-bottom:1rem;">
+                            <i class="bi bi-geo-alt"></i> @hotel.Location
+                        </div>
+                        <div class="ts-card-meta">
+                            <div class="ts-card-price">$@hotel.PricePerNight <span>/ night</span></div>
+                            <a href="/hotels/@hotel.Id" class="btn-ts btn-primary-ts btn-sm-ts">
+                                View <i class="bi bi-arrow-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Pagination -->
+        @if (totalPages > 1)
+        {
+            <div class="ts-pagination">
+                <button class="ts-page-btn" @onclick="PrevPage" disabled="@(currentPage == 1)">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+                @for (int i = 1; i <= totalPages; i++)
+                {
+                    var pg = i;
+                    <button class="ts-page-btn @(pg == currentPage ? "active" : "")" @onclick="() => GoToPage(pg)">@pg</button>
+                }
+                <button class="ts-page-btn" @onclick="NextPage" disabled="@(currentPage == totalPages)">
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private List<HotelDto> hotels = new();
+    private bool loading = true;
+    private int currentPage = 1;
+    private int totalPages = 1;
+    private int totalCount = 0;
+    private string searchQuery = "";
+    private int filterStars = 0;
+    private string sortBy = "rating";
+
+    protected override async Task OnInitializedAsync() => await LoadHotels();
+
+    private async Task LoadHotels()
+    {
+        loading = true;
+        StateHasChanged();
+
+        var result = await HotelSvc.GetAllAsync(currentPage, 6);
+        totalCount = result.TotalCount;
+        totalPages = result.TotalPages;
+
+        hotels = result.Items;
+
+        if (!string.IsNullOrEmpty(searchQuery))
+            hotels = hotels.Where(h => h.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                                        h.Location.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        if (filterStars > 0)
+            hotels = hotels.Where(h => h.Stars == filterStars).ToList();
+
+        hotels = sortBy switch
+        {
+            "price_asc" => hotels.OrderBy(h => h.PricePerNight).ToList(),
+            "price_desc" => hotels.OrderByDescending(h => h.PricePerNight).ToList(),
+            _ => hotels.OrderByDescending(h => h.Rating).ToList()
+        };
+
+        loading = false;
+    }
+
+    private async Task ApplyFilter() => await LoadHotels();
+    private async Task PrevPage() { if (currentPage > 1) { currentPage--; await LoadHotels(); } }
+    private async Task NextPage() { if (currentPage < totalPages) { currentPage++; await LoadHotels(); } }
+    private async Task GoToPage(int page) { currentPage = page; await LoadHotels(); }
+}

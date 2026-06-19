@@ -1,0 +1,277 @@
+@page "/admin/places"
+@attribute [Authorize(Roles = "Admin")]
+@inject PlaceClientService PlaceSvc
+
+<PageTitle>Manage Places — Admin — TouristSystem</PageTitle>
+
+<div class="page-header">
+    <div class="ts-container" style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+            <h1><i class="bi bi-map" style="color:var(--color-accent-2);"></i> Tourist Destinations</h1>
+            <p>Administer natural reserves, historical monuments, museum exhibits, and trails</p>
+        </div>
+        <button class="btn-ts btn-primary-ts" @onclick="ToggleAddForm">
+            <i class="bi @(showAddForm ? "bi-x-circle" : "bi-plus-circle")"></i>
+            @(showAddForm ? "Close Form" : "Add Destination")
+        </button>
+    </div>
+</div>
+
+<div class="ts-container" style="padding-bottom:5rem; margin-top:2rem;">
+    <!-- Add Form -->
+    @if (showAddForm)
+    {
+        <div class="ts-card" style="padding:2rem; margin-bottom:2.5rem;">
+            <h3 style="color:#fff; font-family:var(--font-display); margin-bottom:1.5rem;">
+                <i class="bi bi-plus-square"></i> Add New Tourist Place
+            </h3>
+
+            @if (!string.IsNullOrEmpty(alertMessage))
+            {
+                <div class="ts-alert @(alertIsSuccess ? "ts-alert-success" : "ts-alert-error")">
+                    <i class="bi @(alertIsSuccess ? "bi-check-circle" : "bi-exclamation-triangle")"></i>
+                    @alertMessage
+                </div>
+            }
+
+            <EditForm Model="createDto" OnValidSubmit="HandleAddPlace">
+                <DataAnnotationsValidator />
+                
+                <div class="ts-grid" style="grid-template-columns: 1fr 1fr; gap:1.25rem; margin-bottom:1.25rem;">
+                    <div>
+                        <label class="ts-label" style="display:block; margin-bottom:0.5rem;">Destination Name</label>
+                        <InputText class="ts-input" @bind-Value="createDto.Name" placeholder="e.g. Nurek Reservoir" required />
+                    </div>
+                    <div>
+                        <label class="ts-label" style="display:block; margin-bottom:0.5rem;">Location (Region/Town)</label>
+                        <InputText class="ts-input" @bind-Value="createDto.Location" placeholder="e.g. Khatlon Region" required />
+                    </div>
+                </div>
+
+                <div class="ts-grid" style="grid-template-columns: 1fr 1fr 1fr; gap:1.25rem; margin-bottom:1.25rem;">
+                    <div>
+                        <label class="ts-label" style="display:block; margin-bottom:0.5rem;">Entry Fee ($ USD)</label>
+                        <InputNumber class="ts-input" @bind-Value="createDto.EntryFee" min="0" required />
+                    </div>
+                    <div>
+                        <label class="ts-label" style="display:block; margin-bottom:0.5rem;">Latitude (N)</label>
+                        <InputNumber class="ts-input" @bind-Value="createDto.Latitude" step="any" required />
+                    </div>
+                    <div>
+                        <label class="ts-label" style="display:block; margin-bottom:0.5rem;">Longitude (E)</label>
+                        <InputNumber class="ts-input" @bind-Value="createDto.Longitude" step="any" required />
+                    </div>
+                </div>
+
+                <div style="margin-bottom:1.25rem;">
+                    <label class="ts-label" style="display:block; margin-bottom:0.5rem;">Image URL</label>
+                    <InputText class="ts-input" @bind-Value="createDto.ImageUrl" placeholder="https://unsplash.com/... or leave blank for default" />
+                </div>
+
+                <div style="margin-bottom:1.5rem;">
+                    <label class="ts-label" style="display:block; margin-bottom:0.5rem;">Description / Details</label>
+                    <InputTextArea class="ts-input" @bind-Value="createDto.Description" rows="3" placeholder="Overview of why travelers visit this destination, transport methods, best visiting season..." required />
+                </div>
+
+                <div style="display:flex; gap:1rem; justify-content:flex-end;">
+                    <button type="button" class="btn-ts btn-secondary-ts" @onclick="ToggleAddForm">Cancel</button>
+                    <button type="submit" class="btn-ts btn-primary-ts" disabled="@submitting">
+                        @if (submitting)
+                        {
+                            <span class="spinner" style="width:1rem; height:1rem; margin-right:4px;"></span>
+                        }
+                        Confirm Add Destination
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    }
+
+    <!-- Listings Table -->
+    <div class="ts-card" style="padding:1.5rem;">
+        <h3 style="color:#fff; font-family:var(--font-display); margin-bottom:1.5rem; border-bottom:1px solid var(--color-border); padding-bottom:0.75rem;">
+            <i class="bi bi-geo-alt"></i> Destination Index
+        </h3>
+
+        @if (loading)
+        {
+            <div class="ts-spinner"><div class="spinner"></div></div>
+        }
+        else if (places.Count == 0)
+        {
+            <p style="text-align:center; color:var(--color-text-dim); padding:2rem;">No tourist destinations registered in system.</p>
+        }
+        else
+        {
+            <div class="ts-table-wrap">
+                <table class="ts-table">
+                    <thead>
+                        <tr>
+                            <th style="width:10%;">Image</th>
+                            <th style="width:25%;">Destination Name</th>
+                            <th style="width:20%;">Region</th>
+                            <th style="width:18%;">Coordinates</th>
+                            <th style="width:12%;">Entry Fee</th>
+                            <th style="text-align:right; width:15%;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var place in places)
+                        {
+                            <tr>
+                                <td>
+                                    <img src="@(place.ImageUrl ?? "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800")" style="width:50px; height:50px; object-fit:cover; border-radius:var(--radius-sm);" alt="place" />
+                                </td>
+                                <td>
+                                    <div style="font-weight:600; color:#fff;">@place.Name</div>
+                                    <div style="font-size:0.75rem; color:var(--color-accent-2); font-weight:600;"><i class="bi bi-star-fill"></i> @place.Rating.ToString("F1")</div>
+                                </td>
+                                <td>
+                                    <span style="font-size:0.85rem;"><i class="bi bi-geo-alt" style="color:var(--color-accent-2);"></i> @place.Location</span>
+                                </td>
+                                <td>
+                                    <span style="font-size:0.75rem; color:var(--color-text-dim);">
+                                        @(place.Latitude?.ToString("F4") ?? "N/A"), @(place.Longitude?.ToString("F4") ?? "N/A")
+                                    </span>
+                                </td>
+                                <td>
+                                    <span style="font-weight:700; color:var(--color-accent-2); font-size:0.95rem;">
+                                        @(place.EntryFee > 0 ? $"${place.EntryFee:N0}" : "Free")
+                                    </span>
+                                </td>
+                                <td style="text-align:right;">
+                                    <button class="btn-ts btn-danger-ts btn-sm-ts" @onclick="() => ConfirmDelete(place.Id)" disabled="@deletingId.Contains(place.Id)">
+                                        @if (deletingId.Contains(place.Id))
+                                        {
+                                            <span class="spinner" style="width:0.8rem; height:0.8rem;"></span>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-trash"></i> <span>Delete</span>
+                                        }
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (totalPages > 1)
+            {
+                <div class="ts-pagination" style="margin-top:2rem;">
+                    <button class="ts-page-btn" @onclick="PrevPage" disabled="@(currentPage == 1)">
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                    @for (int i = 1; i <= totalPages; i++)
+                    {
+                        var pg = i;
+                        <button class="ts-page-btn @(pg == currentPage ? "active" : "")" @onclick="() => GoToPage(pg)">@pg</button>
+                    }
+                    <button class="ts-page-btn" @onclick="NextPage" disabled="@(currentPage == totalPages)">
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private List<PlaceDto> places = new();
+    private CreatePlaceDto createDto = new();
+
+    private bool loading = true;
+    private bool showAddForm = false;
+    private bool submitting = false;
+    private int currentPage = 1;
+    private int totalPages = 1;
+
+    private string alertMessage = "";
+    private bool alertIsSuccess = false;
+    private List<Guid> deletingId = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPlaces();
+    }
+
+    private async Task LoadPlaces()
+    {
+        loading = true;
+        StateHasChanged();
+
+        var result = await PlaceSvc.GetAllAsync(null, currentPage, 10);
+        places = result.Items;
+        totalPages = result.TotalPages;
+
+        loading = false;
+        StateHasChanged();
+    }
+
+    private void ToggleAddForm()
+    {
+        showAddForm = !showAddForm;
+        if (showAddForm)
+        {
+            createDto = new CreatePlaceDto();
+            alertMessage = "";
+        }
+    }
+
+    private async Task HandleAddPlace()
+    {
+        submitting = true;
+        alertMessage = "";
+        StateHasChanged();
+
+        if (string.IsNullOrWhiteSpace(createDto.ImageUrl))
+        {
+            createDto.ImageUrl = null;
+        }
+
+        var success = await PlaceSvc.CreateAsync(createDto);
+        submitting = false;
+
+        if (success)
+        {
+            alertIsSuccess = true;
+            alertMessage = "Destination added successfully!";
+            createDto = new CreatePlaceDto();
+
+            await LoadPlaces();
+            await Task.Delay(1000);
+            showAddForm = false;
+        }
+        else
+        {
+            alertIsSuccess = false;
+            alertMessage = "Failed to add destination (demo list updated internally if applicable).";
+            
+            await LoadPlaces();
+        }
+    }
+
+    private async Task ConfirmDelete(Guid placeId)
+    {
+        deletingId.Add(placeId);
+        StateHasChanged();
+
+        var success = await PlaceSvc.DeleteAsync(placeId);
+
+        deletingId.Remove(placeId);
+
+        if (success)
+        {
+            await LoadPlaces();
+        }
+        else
+        {
+            await LoadPlaces();
+        }
+    }
+
+    private async Task PrevPage() { if (currentPage > 1) { currentPage--; await LoadPlaces(); } }
+    private async Task NextPage() { if (currentPage < totalPages) { currentPage++; await LoadPlaces(); } }
+    private async Task GoToPage(int page) { currentPage = page; await LoadPlaces(); }
+}
