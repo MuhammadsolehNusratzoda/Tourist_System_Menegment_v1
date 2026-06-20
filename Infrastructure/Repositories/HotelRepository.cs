@@ -16,8 +16,11 @@ public class HotelRepository : IHotelRepository
         if (minStars.HasValue) query = query.Where(h => h.Stars >= minStars.Value);
 
         var total = await query.CountAsync();
-        var items = await query.OrderByDescending(h => h.Rating)
-            .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        var items = await query
+            .OrderByDescending(h => (double)h.Rating)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
 
         return new PagedResult<Hotel> { Items = items, TotalCount = total, Page = page, PageSize = pageSize };
     }

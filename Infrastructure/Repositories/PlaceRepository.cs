@@ -12,8 +12,11 @@ public class PlaceRepository : IPlaceRepository
             query = query.Where(p => p.Location.Contains(location));
 
         var total = await query.CountAsync();
-        var items = await query.OrderByDescending(p => p.Rating)
-            .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        var items = await query
+            .OrderByDescending(p => (double)p.Rating)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
 
         return new PagedResult<Place> { Items = items, TotalCount = total, Page = page, PageSize = pageSize };
     }

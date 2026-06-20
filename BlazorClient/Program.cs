@@ -20,7 +20,7 @@ builder.Services.AddCascadingAuthenticationState();
 // HttpClient pointing to WebApi
 builder.Services.AddScoped(sp => new HttpClient
 {
-    BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"] ?? "https://localhost:7001/")
+    BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"] ?? "http://localhost:5032/")
 });
 
 // Register all client services
